@@ -165,6 +165,9 @@ public:
   //if you want to start the config portal
   boolean startConfigPortal();
   boolean startConfigPortal(char const *apName, char const *apPassword = NULL);
+  boolean startConfigPortalNormal(char const *apName, char const *apPassword = NULL);
+  
+  void setupConfigPortalNormal();
 
   // get the AP name of the config portal, so it can be used in the callback
   String getConfigPortalSSID();
@@ -292,6 +295,7 @@ private:
   void (*_savecallback)(void) = NULL;
 
   WiFiManagerParameter *_params[WIFI_MANAGER_MAX_PARAMS];
+  
 
   template <typename Generic>
   void DEBUG_WM(Generic text);

@@ -20,7 +20,7 @@
 extern Ticker flasher;
 
 // defines go here
-#define FIRMWAREVERSION "6.1.0"
+#define FIRMWAREVERSION "0.5.0b"
 
 #define API_FHEM true
 #define API_UBIDOTS true
@@ -59,7 +59,7 @@ extern Ticker flasher;
 #define ADCDIVISOR 191.8
 #define ONE_WIRE_BUS D6 // DS18B20 on ESP pin12
 #define OW_PINS \
-    (const uint8_t[]) { D1, D6 }
+    (const uint8_t[]) { D3, D6 }
 #define RESOLUTION 12 // 12bit resolution == 750ms update rate
 #define OWinterval (760 / (1 << (12 - RESOLUTION)))
 #define CFGFILE "/config.json"
@@ -102,8 +102,10 @@ extern Ticker flasher;
 #define UNINIT 0
 
 extern int16_t ax, ay, az;
-extern float Volt, Temperatur, Tilt, Gravity;
+extern float Volt, Temperatur, Tilt, Gravity,Pressure,carbondioxide;
 extern int16_t my_aX, my_aY, my_aZ;
+
+
 
 extern MPU6050_Base accelgyro;
 extern bool saveConfig();
@@ -111,5 +113,24 @@ extern void formatSpiffs();
 
 float scaleTemperature(float t);
 String tempScaleLabel(void);
+
+typedef struct controller {
+	
+	float Kp;
+    float Setpoint;
+    float dead_zone;
+    float min_open_time;
+    double setpoint_carbondioxide;
+	uint16_t cv;
+    uint16_t cycle_time;
+    uint16_t calc_time;
+    uint32_t open_time;
+    uint32_t close_time;
+    bool compressed_gas_bottle;
+    uint32_t crc32;
+
+	
+
+} controller_t,*p_controller_t;
 
 #endif

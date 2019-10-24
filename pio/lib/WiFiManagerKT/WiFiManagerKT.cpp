@@ -186,6 +186,27 @@ void WiFiManager::setupConfigPortal()
   DEBUG_WM(F("HTTP server started"));
 }
 
+void WiFiManager::setupConfigPortalNormal()
+{
+  
+  /* Setup web pages: root, wifi config pages, SO captive portal detectors and not found. */
+  server->on("/", std::bind(&WiFiManager::handleRoot, this));
+  server->on("/wifi", std::bind(&WiFiManager::handleWifi, this));
+  server->on("/wifisave", std::bind(&WiFiManager::handleWifiSave, this));
+  server->on("/close", std::bind(&WiFiManager::handleServerClose, this));
+  server->on("/i", std::bind(&WiFiManager::handleInfo, this));
+  server->on("/iSpindel", std::bind(&WiFiManager::handleiSpindel, this));
+  server->on("/state", std::bind(&WiFiManager::handleState, this));
+  server->on("/scan", std::bind(&WiFiManager::handleScan, this));
+  server->on("/mnt", std::bind(&WiFiManager::handleMnt, this));
+  server->on("/offset", std::bind(&WiFiManager::handleOffset, this));
+  server->on("/reset", std::bind(&WiFiManager::handleReset, this));
+  server->on("/update", HTTP_POST, std::bind(&WiFiManager::handleUpdateDone, this), std::bind(&WiFiManager::handleUpdating, this));
+  server->onNotFound(std::bind(&WiFiManager::handleNotFound, this));
+  server->begin(); // Web server start
+  DEBUG_WM(F("HTTP server started"));
+}
+
 void WiFiManager::handleUpdating()
 {
   // handler for the file upload, get's the sketch bytes, and writes
@@ -317,6 +338,7 @@ boolean WiFiManager::startConfigPortal(char const *apName, char const *apPasswor
 {
   //setup AP
   int connRes = WiFi.waitForConnectResult();
+  
   if (connRes == WL_CONNECTED)
   {
     WiFi.mode(WIFI_AP_STA); //Dual mode works fine if it is connected to WiFi
@@ -405,6 +427,66 @@ boolean WiFiManager::startConfigPortal(char const *apName, char const *apPasswor
   // server.reset(); Apparently broken!
   dnsServer.reset();
   return WiFi.status() == WL_CONNECTED;
+}
+
+boolean WiFiManager::startConfigPortalNormal(char const *apName, char const *apPassword)
+{
+  
+  connect = false;
+  setupConfigPortalNormal();
+  bool TimedOut = true;
+  while (_configPortalTimeout == 0 || millis() < _configPortalStart + _configPortalTimeout)
+  {
+    
+    //HTTP
+    server->handleClient();
+
+    if (connect)
+    {
+      connect = false;
+      TimedOut = false;
+      delay(2000);
+      DEBUG_WM(F("Connecting to new AP"));
+
+      // using user-provided  _ssid, _pass in place of system-stored ssid and pass
+      if (connectWifi(_ssid, _pass) != WL_CONNECTED)
+      {
+        DEBUG_WM(F("Failed to connect."));
+        WiFi.mode(WIFI_AP); // Dual mode becomes flaky if not connected to a WiFi network.
+        // I think this might be because too much of the processor is being utilised
+        //trying to connect to the network.
+      }
+      else
+      {
+        //notify that configuration has changed and any optional parameters should be saved
+        if (_savecallback != NULL)
+        {
+          //todo: check if any custom parameters actually exist, and check if they really changed maybe
+          _savecallback();
+        }
+        //break;
+      }
+
+      if (_shouldBreakAfterConfig)
+      {
+        //flag set to exit after config after trying to connect
+        //notify that configuration has changed and any optional parameters should be saved
+        if (_savecallback != NULL)
+        {
+          //todo: check if any custom parameters actually exist, and check if they really changed maybe
+          _savecallback();
+        }
+        break;
+      }
+    }
+    if (stopConfigPortal)
+    {
+      stopConfigPortal = false;
+      break;
+    }
+    yield();
+  }
+ 
 }
 
 int WiFiManager::connectWifi(String ssid, String pass)
@@ -966,7 +1048,7 @@ void WiFiManager::handleiSpindel()
   page += F("<h1>Info</h1><hr>");
   page += F("<h2><table>");
   page += F("<tr><td>Tilt:</td><td>");
-  page += Tilt;
+  //page += Tilt;
   page += F("&deg;</td></tr>");
   page += F("<tr><td>Temperature:</td><td>");
   page += scaleTemperature(Temperatur);
@@ -977,7 +1059,7 @@ void WiFiManager::handleiSpindel()
   page += Volt;
   page += F("V</td></tr>");
   page += F("<tr><td>Gravity:</td><td>");
-  page += String(Gravity, 3);
+  //page += String(Gravity, 3);
   page += F("</td></tr>");
   page += F("</table></h2>");
   page += F("<hr><dl>");
