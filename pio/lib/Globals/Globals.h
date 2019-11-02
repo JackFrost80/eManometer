@@ -20,7 +20,7 @@
 extern Ticker flasher;
 
 // defines go here
-#define FIRMWAREVERSION "0.5.0b"
+#define FIRMWAREVERSION "0.7.0b"
 
 #define API_FHEM true
 #define API_UBIDOTS true
@@ -132,5 +132,12 @@ typedef struct controller {
 	
 
 } controller_t,*p_controller_t;
+
+typedef struct statistics {
+float opening_time;
+uint32_t times_open;
+uint32_t crc32;
+}
+statistics_t,*p_statistics_t;
 
 #endif

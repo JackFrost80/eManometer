@@ -35,9 +35,19 @@ void MR44V064B_Base::read_controller_parameters(p_controller_t data,uint16_t adr
     MR44V064B_Base::read_array((uint8_t *) data, adress, sizeof(controller_t));
 
 }
+void MR44V064B_Base::read_statistics(p_statistics_t data,uint16_t adress)
+{
+    MR44V064B_Base::read_array((uint8_t *) data, adress, sizeof(statistics_t));
+
+}
 
 void MR44V064B_Base::write_controller_parameters(p_controller_t data,uint16_t adress)
 {
     MR44V064B_Base::write_array((uint8_t *) data, adress, sizeof(controller_t));
+
+}
+void MR44V064B_Base::write_statistics(p_statistics_t data,uint16_t adress)
+{
+    MR44V064B_Base::write_array((uint8_t *) data, adress, sizeof(statistics_t));
 
 }

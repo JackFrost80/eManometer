@@ -29,6 +29,7 @@ All rights reserverd by S.Lang <universam@web.de>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "MR44V064B.h"
+#include "OLED.h"
 
 #include "Sender.h"
 // !DEBUG 1
@@ -48,15 +49,20 @@ All rights reserverd by S.Lang <universam@web.de>
 // iGauge new stuff
 unsigned long previousMillis = 0;        // will store last time LED was updated
 const long interval = 250;           // interval at which to blink (milliseconds)
+
 double setpoint_pressure = 0;
 controller_t Controller_;
 p_controller_t p_Controller_ = &Controller_;
+statistics_t Statistic_;
+p_statistics_t p_Statistic_ = &Statistic_;
 uint32_t open = 0;
 uint32_t close = 0;
-uint32_t open_time = 0;
+uint32_t open_time = 0.0;
 uint32_t close_time = 0;
 uint32_t next_calc = 0;
 uint32_t next_vale_calc = 0;
+float opening_time = 0.0;
+uint16_t times_open = 0;
 #define SIZE_OF_AVG  12
 #define MosFET D0
 #define LED_RED D4
@@ -537,6 +543,9 @@ String htmlencode(String str)
 
 bool startConfiguration()
 {
+  set_violet();
+  lcd_gotoxy(0,2);
+  lcd_puts_invert("Konfig... 192.168.4.1");
 
   WiFiManager wifiManager;
 
@@ -838,13 +847,13 @@ bool uploadData(uint8_t service)
 #ifdef API_UBIDOTS
   if (service == DTUbiDots)
   {
-    //sender.add("tilt", Tilt);
     sender.add("temperature", scaleTemperature(Temperatur));
-    //sender.add("battery", Volt);
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
     sender.add("interval", my_sleeptime);
     sender.add("RSSI", WiFi.RSSI());
+    sender.add("Opening_times",p_Statistic_->times_open);
+    sender.add("Open_time",p_Statistic_->opening_time/1000);
     CONSOLELN(F("\ncalling Ubidots"));
     return sender.sendUbidots(my_token, my_name);
   }
@@ -853,12 +862,14 @@ bool uploadData(uint8_t service)
 #ifdef API_MQTT
   if (service == DTMQTT)
   {
-    //sender.add("tilt", Tilt);
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("temp_units", tempScaleLabel());
-    sender.add("battery", Volt);
-    //sender.add("gravity", Gravity);
-    sender.add("interval", my_sleeptime);
+    sender.add("pressure", Pressure);
+    sender.add("carbondioxid", carbondioxide);
+    sender.add("interval", interval_send_data);
+    sender.add("RSSI", WiFi.RSSI());
+    sender.add("Opening_times",p_Statistic_->times_open);
+    sender.add("Open_time",p_Statistic_->opening_time/1000);
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling MQTT"));
     return sender.sendMQTT(my_server, my_port, my_username, my_password, my_name);
@@ -868,12 +879,14 @@ bool uploadData(uint8_t service)
 #ifdef API_INFLUXDB
   if (service == DTInfluxDB)
   {
-    //sender.add("tilt", Tilt);
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("temp_units", tempScaleLabel());
-    sender.add("battery", Volt);
-    //sender.add("gravity", Gravity);
-    sender.add("interval", my_sleeptime);
+    sender.add("pressure", Pressure);
+    sender.add("carbondioxid", carbondioxide);
+    sender.add("interval", interval_send_data);
+    sender.add("RSSI", WiFi.RSSI());
+    sender.add("Opening_times",p_Statistic_->times_open);
+    sender.add("Open_time",p_Statistic_->opening_time/1000);
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling InfluxDB"));
     CONSOLELN(String(F("Sending to db: ")) + my_db + String(F(" w/ credentials: ")) + my_username + String(F(":")) + my_password);
@@ -884,11 +897,14 @@ bool uploadData(uint8_t service)
 #ifdef API_PROMETHEUS
   if (service == DTPrometheus)
   {
-    //sender.add("tilt", Tilt);
+    
     sender.add("temperature", Temperatur);
-    sender.add("battery", Volt);
-    //sender.add("gravity", Gravity);
-    sender.add("interval", my_sleeptime);
+    sender.add("pressure", Pressure);
+    sender.add("carbondioxid", carbondioxide);
+    sender.add("interval", interval_send_data);
+    sender.add("RSSI", WiFi.RSSI());
+    sender.add("Opening_times",p_Statistic_->times_open);
+    sender.add("Open_time",p_Statistic_->opening_time/1000);
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling Prometheus Pushgateway"));
     return sender.sendPrometheus(my_server, my_port, my_job, my_instance);
@@ -903,16 +919,17 @@ bool uploadData(uint8_t service)
     sender.add("ID", ESP.getChipId());
     if (my_token[0] != 0)
       sender.add("token", my_token);
-    //sender.add("angle", Tilt);
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("temp_units", tempScaleLabel());
     sender.add("battery", Volt);
     sender.add("type","eManometer");
-    //sender.add("gravity", Gravity);
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
     sender.add("interval", interval_send_data);
     sender.add("RSSI", WiFi.RSSI());
+    sender.add("Opening_times",p_Statistic_->times_open);
+    sender.add("Open_time",p_Statistic_->opening_time/1000);
+    
 
     if (service == DTHTTP)
     {
@@ -942,11 +959,15 @@ bool uploadData(uint8_t service)
   if (service == DTFHEM)
   {
     
-    //sender.add("angle", Tilt);
+    
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("temp_units", tempScaleLabel());
-    sender.add("battery", Volt);
-    //sender.add("gravity", Gravity);
+    sender.add("pressure", Pressure);
+    sender.add("carbondioxid", carbondioxide);
+    sender.add("interval", interval_send_data);
+    sender.add("RSSI", WiFi.RSSI());
+    sender.add("Opening_times",p_Statistic_->times_open);
+    sender.add("Open_time",p_Statistic_->opening_time/1000);    
     sender.add("ID", ESP.getChipId());
     CONSOLELN(F("\ncalling FHEM"));
     return sender.sendFHEM(my_server, my_port, my_name);
@@ -1429,7 +1450,21 @@ void setup()
     CONSOLELN(calculated_crc,HEX);
     set_green();
   }
+  FRAM.read_statistics(p_Statistic_,Statistics_offset);
+  crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
+  if(p_Statistic_->crc32 != calculated_crc)
+  {
+    p_Statistic_->opening_time = 0.0;
+    p_Statistic_->times_open = 0;
+  }
+      
   delay(500);
+  init_LCD();
+  lcd_gotoxy(0,0);
+  lcd_puts("eManometer ");
+  lcd_puts(FIRMWAREVERSION);
+  
+  
   //Initialize Ticker every 0.5s
    // timer1_attachInterrupt(onTimerISR);
    // timer1_enable(TIM_DIV16, TIM_EDGE, TIM_SINGLE);
@@ -1663,7 +1698,7 @@ void loop()
             client.println(".button2 {background-color: #77878A;}</style></head>");
             
             // Web Page Heading
-            client.println("<body><h1>iGauge Web Server</h1>");
+            client.println("<body><h1>eManometer Web Server</h1>");
             
             // Display current state, and ON/OFF buttons for GPIO 5  
             char helper[20];
@@ -1845,6 +1880,36 @@ void loop()
     // save the last time you blinked the LED
     previousMillis = currentMillis;
     blink++;
+    char buffer_[20];
+    sprintf(buffer_,"Druck: %.2f bar  ",Pressure);
+    lcd_gotoxy(0,1);
+    lcd_puts(buffer_);
+    sprintf(buffer_,"Temp: %.2f 'C",Temperatur);
+    lcd_gotoxy(0,2);
+    lcd_puts(buffer_);
+    sprintf(buffer_,"CO2: %.2f g/l  ",carbondioxide);
+    lcd_gotoxy(0,3);
+    lcd_puts(buffer_);
+    sprintf(buffer_,"Zeit: %.2f s",p_Statistic_->opening_time/1000);
+    lcd_gotoxy(0,4);
+    lcd_puts(buffer_);
+    sprintf(buffer_,"Anzahl: %d",p_Statistic_->times_open);
+    lcd_gotoxy(0,5);
+    lcd_puts(buffer_);
+    if(p_Controller_->compressed_gas_bottle)
+    {
+      lcd_gotoxy(0,6);
+      lcd_puts("CO2-Flasche");
+
+
+    }
+    else
+    {
+      lcd_gotoxy(0,6);
+      lcd_puts("Gärung     ");
+    }
+    
+
   }
 
   if (currentMillis - next_calc >= p_Controller_->calc_time) {
@@ -1865,19 +1930,33 @@ void loop()
   {
     open_time = p_Controller_->open_time;
     open = currentMillis;
+    
     //close = currentMillis + p_Controller_->close_time;
     next_vale_calc = currentMillis;
+    
+    
     if(p_Controller_->open_time > 0)
     {
-      
-       digitalWrite(MosFET ,1);
+      p_Statistic_->opening_time += open_time;
+      p_Statistic_->times_open++;
+      uint32_t calculated_crc = 0;
+      crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
+      p_Statistic_->crc32 = calculated_crc;
+      FRAM.write_statistics(p_Statistic_,Statistics_offset);
+      digitalWrite(MosFET ,1);
     }
-     
     
-
-
-
   }
+  uint8_t input = digitalRead(D7);
+  if(input == 0)
+    {
+      p_Statistic_->opening_time = 0.0;
+      p_Statistic_->times_open = 0;
+      uint32_t calculated_crc = 0;
+      crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
+      p_Statistic_->crc32 = calculated_crc;
+      FRAM.write_statistics(p_Statistic_,Statistics_offset);
+    }
     
   
 
