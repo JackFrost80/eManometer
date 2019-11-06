@@ -56,7 +56,7 @@ extern Ticker flasher;
 #define ADCDIVISOR 191.8
 #define ONE_WIRE_BUS D6 // DS18B20 on ESP pin12
 #define OW_PINS \
-    (const uint8_t[]) { D3, D6 }
+    (const uint8_t[]) { D3 }
 #define RESOLUTION 12 // 12bit resolution == 750ms update rate
 #define OWinterval (760 / (1 << (12 - RESOLUTION)))
 #define CFGFILE "/config.json"

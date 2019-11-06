@@ -1241,9 +1241,8 @@ void disp_print_header()
   disp->print(FIRMWAREVERSION);
 }
 
-void setup()
+void setup_ledTest()
 {
-  Serial.begin(115200);
   // Set LED Pins to output
   pinMode(LED_RED , OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
@@ -1263,7 +1262,10 @@ void setup()
   digitalWrite(LED_BLUE,1);
   delay(1000);
   digitalWrite(LED_BLUE,0);
-  ADC_.MCP3221_init(); // Init I2C and Reset broken transmission.
+}
+
+void setup_FRAM_init()
+{
   FRAM.read_controller_parameters(p_Controller_,Controller_paramter_offset);
   uint32_t calculated_crc = 0xffffffff;
   crc32_array((uint8_t *) p_Controller_,sizeof(controller_t)-4,&calculated_crc);
@@ -1295,9 +1297,10 @@ void setup()
     p_Statistic_->opening_time = 0.0;
     p_Statistic_->times_open = 0;
   }
-      
-  delay(500);
+}
 
+void setup_displayInit()
+{
   disp = new Display_SSD1306_Custom();
   //disp = new Display_Adafruit_SSD1306();
 
@@ -1305,7 +1308,22 @@ void setup()
   disp->clear();
   disp_print_header();
   disp->sync();
-  
+}
+
+void setup()
+{
+  Serial.begin(115200);
+
+  setup_ledTest();
+
+  ADC_.MCP3221_init(); // Init I2C and Reset broken transmission.
+
+  setup_FRAM_init();
+      
+  delay(500);
+
+  setup_displayInit();
+
   //Initialize Ticker every 0.5s
    // timer1_attachInterrupt(onTimerISR);
    // timer1_enable(TIM_DIV16, TIM_EDGE, TIM_SINGLE);
