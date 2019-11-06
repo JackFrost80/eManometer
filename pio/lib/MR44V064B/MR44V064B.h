@@ -1,7 +1,7 @@
 #ifndef _MR44V064B_H_
 #define _MR44V064B_H_
 
-#include "I2Cdev.h"
+#include <stdint.h>
 #include "Globals.h"
 
 #define FRAM_adress 0x50   // 7 Byte address 

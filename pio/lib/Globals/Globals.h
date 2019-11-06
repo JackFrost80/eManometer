@@ -9,14 +9,11 @@
 #define _GLOBALS_H
 
 #pragma once
-//#define USE_DMP false
 #include <Arduino.h>
 #include <Hash.h>
 
 #include <Ticker.h>
 
-#include <I2Cdev.h>
-#include <MPU6050.h>
 extern Ticker flasher;
 
 // defines go here
@@ -101,13 +98,8 @@ extern Ticker flasher;
 
 #define UNINIT 0
 
-extern int16_t ax, ay, az;
-extern float Volt, Temperatur, Tilt, Gravity,Pressure,carbondioxide;
-extern int16_t my_aX, my_aY, my_aZ;
+extern float Temperatur, Tilt, Gravity,Pressure,carbondioxide;
 
-
-
-extern MPU6050_Base accelgyro;
 extern bool saveConfig();
 extern void formatSpiffs();
 

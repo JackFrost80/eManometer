@@ -1,4 +1,5 @@
 #include "OLED.h"
+#include <Wire.h>
 
 
 static const uint8_t ssd1306oled_font6x8 [] = {

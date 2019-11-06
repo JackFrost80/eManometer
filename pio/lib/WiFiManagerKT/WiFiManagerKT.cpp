@@ -20,8 +20,6 @@
 
 #include "WiFiManagerKT.h"
 
-MPUOffset offset;
-
 WiFiManagerParameter::WiFiManagerParameter(const char *custom)
 {
   _id = NULL;
@@ -178,7 +176,7 @@ void WiFiManager::setupConfigPortal()
   server->on("/state", std::bind(&WiFiManager::handleState, this));
   server->on("/scan", std::bind(&WiFiManager::handleScan, this));
   server->on("/mnt", std::bind(&WiFiManager::handleMnt, this));
-  server->on("/offset", std::bind(&WiFiManager::handleOffset, this));
+  //server->on("/offset", std::bind(&WiFiManager::handleOffset, this));
   server->on("/reset", std::bind(&WiFiManager::handleReset, this));
   server->on("/update", HTTP_POST, std::bind(&WiFiManager::handleUpdateDone, this), std::bind(&WiFiManager::handleUpdating, this));
   server->onNotFound(std::bind(&WiFiManager::handleNotFound, this));
@@ -199,7 +197,7 @@ void WiFiManager::setupConfigPortalNormal()
   server->on("/state", std::bind(&WiFiManager::handleState, this));
   server->on("/scan", std::bind(&WiFiManager::handleScan, this));
   server->on("/mnt", std::bind(&WiFiManager::handleMnt, this));
-  server->on("/offset", std::bind(&WiFiManager::handleOffset, this));
+  //server->on("/offset", std::bind(&WiFiManager::handleOffset, this));
   server->on("/reset", std::bind(&WiFiManager::handleReset, this));
   server->on("/update", HTTP_POST, std::bind(&WiFiManager::handleUpdateDone, this), std::bind(&WiFiManager::handleUpdating, this));
   server->onNotFound(std::bind(&WiFiManager::handleNotFound, this));
@@ -1055,12 +1053,6 @@ void WiFiManager::handleiSpindel()
   page += F("&deg;");
   page += tempScaleLabel();
   page += F("</td></tr>");
-  page += F("<tr><td>Battery:</td><td>");
-  page += Volt;
-  page += F("V</td></tr>");
-  page += F("<tr><td>Gravity:</td><td>");
-  //page += String(Gravity, 3);
-  page += F("</td></tr>");
   page += F("</table></h2>");
   page += F("<hr><dl>");
   page += F("<dt><h3>Firmware</h3></dt>");
@@ -1111,6 +1103,7 @@ void WiFiManager::handleMnt()
   DEBUG_WM(F("Sent iSpindel info page"));
 }
 
+#if 0
 /** Handle the info page */
 void WiFiManager::handleOffset()
 {
@@ -1147,6 +1140,7 @@ void WiFiManager::handleOffset()
     offset.calibrate();
   ESP.reset();
 }
+#endif
 
 /** Handle the state page */
 void WiFiManager::handleState()

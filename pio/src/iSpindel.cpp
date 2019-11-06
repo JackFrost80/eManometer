@@ -8,7 +8,6 @@ All rights reserverd by S.Lang <universam@web.de>
 // includes go here
 #include <PubSubClient.h>
 #include "Globals.h"
-#include "MPUOffset.h"
 // #endif
 #include "OneWire.h"
 #include "Wire.h"
@@ -22,7 +21,6 @@ All rights reserverd by S.Lang <universam@web.de>
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h> //https://github.com/esp8266/Arduino
 #include <FS.h>          //this needs to be first
-#include "tinyexpr.h"
 #include "MCP3221A5T-E.h"
 #include <Ticker.h>
 #include <regex.h>
@@ -33,18 +31,6 @@ All rights reserverd by S.Lang <universam@web.de>
 
 #include "Sender.h"
 // !DEBUG 1
-
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-#define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
-//Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-#define NUMFLAKES     10 // Number of snowflakes in the animation example
-
-#define LOGO_HEIGHT   16
-#define LOGO_WIDTH    16
 
 // iGauge new stuff
 unsigned long previousMillis = 0;        // will store last time LED was updated
@@ -101,7 +87,6 @@ unsigned long previousTime = 0;
 const long timeoutTime = 2000;
 
 // definitions go here
-MPU6050_Base accelgyro;
 MCP3221_Base ADC_;
 OneWire *oneWire;
 DallasTemperature DS18B20;
@@ -118,28 +103,6 @@ uint32_t start_time = 0;
 #define TEMP_KELVIN 2
 
 int detectTempSensor(const uint8_t pins[]);
-bool testAccel();
-
-#ifdef USE_DMP
-#include "MPU6050.h"
-
-// MPU control/status vars
-bool dmpReady = false;  // set true if DMP init was successful
-uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
-uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
-uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
-uint16_t fifoCount;     // count of all bytes currently in FIFO
-uint8_t fifoBuffer[64]; // FIFO storage buffer
-
-// orientation/motion vars
-Quaternion q;        // [w, x, y, z]         quaternion container
-VectorInt16 aa;      // [x, y, z]            accel sensor measurements
-VectorInt16 aaReal;  // [x, y, z]            gravity-free accel sensor measurements
-VectorInt16 aaWorld; // [x, y, z]            world-frame accel sensor measurements
-VectorFloat gravity; // [x, y, z]            gravity vector
-float euler[3];      // [psi, theta, phi]    Euler angle container
-float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-#endif
 
 bool shouldSaveConfig = false;
 
@@ -168,7 +131,7 @@ uint32_t DSreqTime = 0;
 float pitch, roll;
 
 int16_t ax, ay, az;
-float Volt, Temperatur, Pressure, carbondioxide; // , corrGravity;
+float Temperatur, Pressure, carbondioxide; // , corrGravity;
 
 
 
@@ -341,19 +304,6 @@ String tempScaleLabel(void)
 void saveConfigCallback()
 {
   shouldSaveConfig = true;
-}
-
-void applyOffset()
-{
-  if (my_aX != UNINIT && my_aY != UNINIT && my_aZ != UNINIT)
-  {
-    CONSOLELN(F("applying offsets"));
-    accelgyro.setXAccelOffset(my_aX);
-    accelgyro.setYAccelOffset(my_aY);
-    accelgyro.setZAccelOffset(my_aZ);
-  }
-  else
-    CONSOLELN(F("offsets not available"));
 }
 
 bool readConfig()
@@ -921,7 +871,6 @@ bool uploadData(uint8_t service)
       sender.add("token", my_token);
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("temp_units", tempScaleLabel());
-    sender.add("battery", Volt);
     sender.add("type","eManometer");
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
@@ -978,7 +927,6 @@ bool uploadData(uint8_t service)
   {
     sender.add("T", scaleTemperature(Temperatur));
     //sender.add("D", Tilt);
-    sender.add("U", Volt);
     //sender.add("G", Gravity);
     CONSOLELN(F("\ncalling TCONTROL"));
     return sender.sendTCONTROL(my_server, 4968);
@@ -1094,87 +1042,6 @@ void initDS18B20()
 bool isDS18B20ready()
 {
   return millis() - DSreqTime > OWinterval;
-}
-
-void initAccel()
-{
-  // join I2C bus (I2Cdev library doesn't do this automatically)
-  Wire.begin(D2, D1);
-  Wire.setClock(100000);
-  Wire.setClockStretchLimit(2 * 230);
-
-  // init the Accel
-  //accelgyro.initialize();
-  //accelgyro.setFullScaleAccelRange(MPU6050_ACCEL_FS_2);
-  //accelgyro.setFullScaleGyroRange(MPU6050_GYRO_FS_250);
-  //accelgyro.setDLPFMode(MPU6050_DLPF_BW_5);
-  //accelgyro.setTempSensorEnabled(true);
-#ifdef USE_DMP
-  //accelgyro.setDMPEnabled(true);
-  //packetSize = accelgyro.dmpGetFIFOPacketSize();
-#endif
-  //accelgyro.setInterruptLatch(0); // pulse
-  //accelgyro.setInterruptMode(1);  // Active Low
-  //accelgyro.setInterruptDrive(1); // Open drain
-  //accelgyro.setRate(17);
-  //accelgyro.setIntDataReadyEnabled(true);
-  //testAccel();
-}
-
-float calculateTilt()
-{
-  //float _ax = ax;
-  //float _ay = ay;
-  //float _az = az;
-  //float pitch = (atan2(_ay, sqrt(_ax * _ax + _az * _az))) * 180.0 / M_PI;
-  //float roll = (atan2(_ax, sqrt(_ay * _ay + _az * _az))) * 180.0 / M_PI;
-  //return sqrt(pitch * pitch + roll * roll);
-  return 1;
-}
-
-bool testAccel()
-{
-  uint8_t res = Wire.status();
-  if (res != I2C_OK)
-    CONSOLELN(String(F("I2C ERROR: ")) + res);
-
-  bool con = accelgyro.testConnection();
-  if (!con)
-    CONSOLELN(F("Acc Test Connection ERROR!"));
-
-  return res == I2C_OK && con == true;
-}
-
-void getAccSample()
-{
-  accelgyro.getAcceleration(&ax, &az, &ay);
-}
-
-float getTilt()
-{
-  uint32_t start = millis();
-  uint8_t i = 0;
-
-  for (; i < MEDIANROUNDSMAX; i++)
-  {
-    while (!accelgyro.getIntDataReadyStatus())
-      delay(2);
-    getAccSample();
-    float _tilt = calculateTilt();
-    samples.add(_tilt);
-
-    if (i >= MEDIANROUNDSMIN && isDS18B20ready())
-      break;
-  }
-  CONSOLE("Samples:");
-  CONSOLE(++i);
-  CONSOLE(" min:");
-  CONSOLE(samples.getLowest());
-  CONSOLE(" max:");
-  CONSOLE(samples.getHighest());
-  CONSOLE(" time:");
-  CONSOLELN(millis() - start);
-  return samples.getAverage(MEDIANAVRG);
 }
 
 float getTemperature(bool block = false)
@@ -1323,45 +1190,6 @@ int detectTempSensor(const uint8_t pins[])
   return -1;
 }
 
-float getBattery()
-{
-  analogRead(A0); // drop first read
-  return analogRead(A0) / my_vfact;
-}
-
-float calculateGravity()
-{
-  //double _tilt = Tilt;
-  //double _temp = Temperatur;
-  //float _gravity = 0;
-  //int err;
-  //te_variable vars[] = {{"tilt", &_tilt}, {"temp", &_temp}};
-  
-}
-
-void flash()
-{
-  // triggers the LED
-  //Volt = getBattery();
-  //if (testAccel())
-   // getAccSample();
-  //Tilt = calculateTilt();
-  //Temperatur = getTemperature(false);
-  //Gravity = calculateGravity();
-  //requestTemp();
-}
-
-bool isSafeMode(float _volt)
-{
-  if (_volt < LOWBATT)
-  {
-    CONSOLELN(F("\nWARNING: low Battery"));
-    return true;
-  }
-  else
-    return false;
-}
-
 void connectBackupCredentials()
 {
   WiFi.disconnect();
@@ -1479,8 +1307,6 @@ void setup()
     CONSOLELN(F("\nERROR config corrupted"));
   initDS18B20();
   
-  //initAccel();
-
   // decide whether we want configuration mode or normal mode
   if (shouldStartConfig(validConf))
   {
@@ -1522,81 +1348,13 @@ void setup()
   }
   // to make sure we wake up with STA but AP
   WiFi.mode(WIFI_STA);
-  Volt = getBattery();
-  // we try to survive
-  if (isSafeMode(Volt))
-    WiFi.setOutputPower(0);
-  else
-    WiFi.setOutputPower(20.5);
+  WiFi.setOutputPower(20.5);
 
-#ifndef USE_DMP
-  //Tilt = getTilt();
-#else
-  while (fifoCount < packetSize)
-  {
-    //do stuff
-    CONSOLELN(F("wait DMP"));
-
-    fifoCount = accelgyro.getFIFOCount();
-  }
-  if (fifoCount == 1024)
-  {
-    CONSOLELN(F("FIFO overflow"));
-    accelgyro.resetFIFO();
-  }
-  else
-  {
-    fifoCount = accelgyro.getFIFOCount();
-
-    accelgyro.getFIFOBytes(fifoBuffer, packetSize);
-
-    accelgyro.resetFIFO();
-
-    fifoCount -= packetSize;
-
-    accelgyro.dmpGetQuaternion(&q, fifoBuffer);
-    accelgyro.dmpGetEuler(euler, &q);
-
-    /*
-    for (int i = 1; i < 64; i++) {
-    CONSOLE(fifoBuffer[i]);
-    CONSOLE(" ");
-    }
-    */
-
-    CONSOLE(F("euler\t"));
-    CONSOLE((euler[0] * 180 / M_PI));
-    CONSOLE("\t");
-    CONSOLE(euler[1] * 180 / M_PI);
-    CONSOLE("\t");
-    CONSOLELN(euler[2] * 180 / M_PI);
-
-    ax = euler[0];
-    ay = euler[2];
-    az = euler[1];
-
-    float _ax = ax;
-    float _ay = ay;
-    float _az = az;
-    float pitch = (atan2(_ay, sqrt(_ax * _ax + _az * _az))) * 180.0 / M_PI;
-    float roll = (atan2(_ax, sqrt(_ay * _ay + _az * _az))) * 180.0 / M_PI;
-    //Tilt = sqrt(pitch * pitch + roll * roll);
-  }
-#endif
-
-  //float accTemp = accelgyro.getTemperature() / 340.00 + 36.53;
-  //accelgyro.setSleepEnabled(true);
   uint16_t raw_data = ADC_.MCP3221_getdata();
   CONSOLE("raw data: ");
   CONSOLELN(raw_data);
   raw_data -= 0x163; // set 0,5V to zero;
   Pressure = (float((double)raw_data * 0.0030517578125));
-  //CONSOLE(F("Tilt: "));
-  //CONSOLELN(Tilt);
-  //CONSOLE("Tacc: ");
-  //CONSOLELN(accTemp);
-  CONSOLE("Volt: ");
-  CONSOLELN(Volt);
 
   // call as late as possible since DS needs converge time
   Temperatur = getTemperature(true);
@@ -1957,11 +1715,5 @@ void loop()
       p_Statistic_->crc32 = calculated_crc;
       FRAM.write_statistics(p_Statistic_,Statistics_offset);
     }
-    
-  
-
-
-
-
   
 }
