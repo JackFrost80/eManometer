@@ -429,7 +429,6 @@ boolean WiFiManager::startConfigPortal(char const *apName, char const *apPasswor
 
 boolean WiFiManager::startConfigPortalNormal(char const *apName, char const *apPassword)
 {
-  
   connect = false;
   setupConfigPortalNormal();
   bool TimedOut = true;

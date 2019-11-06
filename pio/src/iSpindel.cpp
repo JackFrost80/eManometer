@@ -1423,6 +1423,8 @@ void setup()
   //goodNight(my_sleeptime);
         // Draw characters of the default font
 
+
+  //startConfigurationNormal();
   server.begin();
   pinMode(MosFET, OUTPUT);
   
@@ -1656,25 +1658,20 @@ void loop()
   
     previousMillis = currentMillis;
     blink++;
-    char buffer_[20];
-    sprintf(buffer_,"Druck: %.2f bar  ",Pressure);
     disp->setLine(1);
-    disp->print(buffer_);
-    sprintf(buffer_,"Temp: %.2f 'C",Temperatur);
+    disp->printf("Druck: %.2f bar  ", Pressure);
     disp->setLine(2);
-    disp->print(buffer_);
-    sprintf(buffer_,"CO2: %.2f g/l  ",carbondioxide);
+    disp->printf("Temp: %.2f 'C", Temperatur);
     disp->setLine(3);
-    disp->print(buffer_);
-    sprintf(buffer_,"Zeit: %.2f s",p_Statistic_->opening_time/1000);
+    disp->printf("CO2: %.2f g/l  ", carbondioxide);
     disp->setLine(4);
-    disp->print(buffer_);
-    sprintf(buffer_,"Anzahl: %d",p_Statistic_->times_open);
+    disp->printf("Zeit: %.2f s", p_Statistic_->opening_time/1000);
     disp->setLine(5);
-    disp->print(buffer_);
+    disp->printf("Anzahl: %d", p_Statistic_->times_open);
+    disp->setLine(6);
     if(p_Controller_->compressed_gas_bottle)
     {
-      disp->setLine(6);
+      disp->setLine(7);
       disp->print("CO2 Flasche");
     }
     else

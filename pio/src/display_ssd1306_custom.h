@@ -6,13 +6,14 @@
 class Display_SSD1306_Custom : public DisplayInterface {
 	public:
 		Display_SSD1306_Custom();
-		
-		virtual void init();
-		virtual void print(const char* line);
-		virtual void clear();
-		virtual void sync();
-		virtual void setCursor(int x, int y);
-		virtual void setLine(int y);
+
+	private:
+		virtual void doInit();
+		virtual void doPrint(const char* line);
+		virtual void doClear();
+		virtual void doSync();
+		virtual void doSetCursor(int x, int y);
+		virtual void doSetLine(int y);
 
 	private:
 		int mLine{0};

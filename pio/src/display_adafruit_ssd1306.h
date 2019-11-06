@@ -10,16 +10,16 @@ class Display_Adafruit_SSD1306 : public DisplayInterface {
 	public:
 		Display_Adafruit_SSD1306();
 
-		virtual void init();
-		virtual void print(const char* line);
-		virtual void clear();
-
-		virtual void setCursor(int x, int y);
-		virtual void setLine(int y);
-
-		virtual void sync();
-
 	private:
+		virtual void doInit();
+		virtual void doPrint(const char* line);
+		virtual void doClear();
+
+		virtual void doSetCursor(int x, int y);
+		virtual void doSetLine(int y);
+
+		virtual void doSync();
+
 		Adafruit_SSD1306 ada;
 };
 

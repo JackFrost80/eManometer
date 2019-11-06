@@ -3,14 +3,23 @@
 
 class DisplayInterface {
 	public:
-		virtual void init() = 0;
-		virtual void print(const char* line);
-		virtual void clear() = 0;
+		void init();
+		void print(const char* line);
+		void printf(const char *format, ...);
+		void clear();
+		void setCursor(int x, int y);
+		void setLine(int y);
+		void sync();
 
-		virtual void setCursor(int x, int y) = 0;
-		virtual void setLine(int y) = 0;
+	private:
+		virtual void doInit() = 0;
+		virtual void doPrint(const char* line);
+		virtual void doClear() = 0;
 
-		virtual void sync() = 0;
+		virtual void doSetCursor(int x, int y) = 0;
+		virtual void doSetLine(int y) = 0;
+
+		virtual void doSync() = 0;
 };
 
 #endif
