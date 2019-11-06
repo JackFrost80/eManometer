@@ -30,11 +30,15 @@ All rights reserverd by S.Lang <universam@web.de>
 #include "OLED.h"
 
 #include "Sender.h"
+#include "display_adafruit_ssd1306.h"
+#include "display_ssd1306_custom.h"
 // !DEBUG 1
 
 // iGauge new stuff
 unsigned long previousMillis = 0;        // will store last time LED was updated
 const long interval = 250;           // interval at which to blink (milliseconds)
+
+DisplayInterface* disp = nullptr;
 
 double setpoint_pressure = 0;
 controller_t Controller_;
@@ -1231,6 +1235,12 @@ void calc_valve_time(p_controller_t values, uint32_t *open, uint32_t *close,uint
 
 }
 
+void disp_print_header()
+{
+  disp->print("eManometer ");
+  disp->print(FIRMWAREVERSION);
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -1287,11 +1297,14 @@ void setup()
   }
       
   delay(500);
-  init_LCD();
-  lcd_gotoxy(0,0);
-  lcd_puts("eManometer ");
-  lcd_puts(FIRMWAREVERSION);
-  
+
+  disp = new Display_SSD1306_Custom();
+  //disp = new Display_Adafruit_SSD1306();
+
+  disp->init();
+  disp->clear();
+  disp_print_header();
+  disp->sync();
   
   //Initialize Ticker every 0.5s
    // timer1_attachInterrupt(onTimerISR);
@@ -1636,37 +1649,41 @@ void loop()
 
   if (currentMillis - previousMillis >= interval) {
     // save the last time you blinked the LED
+
+    disp->clear();
+    disp->setLine(0);
+    disp_print_header();
+  
     previousMillis = currentMillis;
     blink++;
     char buffer_[20];
     sprintf(buffer_,"Druck: %.2f bar  ",Pressure);
-    lcd_gotoxy(0,1);
-    lcd_puts(buffer_);
+    disp->setLine(1);
+    disp->print(buffer_);
     sprintf(buffer_,"Temp: %.2f 'C",Temperatur);
-    lcd_gotoxy(0,2);
-    lcd_puts(buffer_);
+    disp->setLine(2);
+    disp->print(buffer_);
     sprintf(buffer_,"CO2: %.2f g/l  ",carbondioxide);
-    lcd_gotoxy(0,3);
-    lcd_puts(buffer_);
+    disp->setLine(3);
+    disp->print(buffer_);
     sprintf(buffer_,"Zeit: %.2f s",p_Statistic_->opening_time/1000);
-    lcd_gotoxy(0,4);
-    lcd_puts(buffer_);
+    disp->setLine(4);
+    disp->print(buffer_);
     sprintf(buffer_,"Anzahl: %d",p_Statistic_->times_open);
-    lcd_gotoxy(0,5);
-    lcd_puts(buffer_);
+    disp->setLine(5);
+    disp->print(buffer_);
     if(p_Controller_->compressed_gas_bottle)
     {
-      lcd_gotoxy(0,6);
-      lcd_puts("CO2-Flasche");
-
-
+      disp->setLine(6);
+      disp->print("CO2 Flasche");
     }
     else
     {
-      lcd_gotoxy(0,6);
-      lcd_puts("Gärung     ");
+      disp->setLine(7);
+      disp->print("Gaerung       ");
     }
-    
+
+    disp->sync();
 
   }
 
