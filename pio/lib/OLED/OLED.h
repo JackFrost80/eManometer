@@ -80,10 +80,10 @@
 
 #define OLED_Adress 0x3C
 
-void lcd_clrscr();
-void lcd_home();
-void lcd_gotoxy(uint8_t x, uint8_t y);
-void init_LCD();
+void lcd_clrscr(uint8_t display);
+void lcd_home(uint8_t display);
+void lcd_gotoxy(uint8_t x, uint8_t y,uint8_t display);
+void init_LCD(uint8_t display);
 void lcd_puts(const char* s);
 void lcd_puts_invert(const char* s);
 

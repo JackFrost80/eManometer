@@ -16,11 +16,10 @@
 #include <Ticker.h>
 
 #include <I2Cdev.h>
-#include <MPU6050.h>
-extern Ticker flasher;
+
 
 // defines go here
-#define FIRMWAREVERSION "0.7.0b"
+#define FIRMWAREVERSION "0.7.6b"
 
 #define API_FHEM true
 #define API_UBIDOTS true
@@ -101,13 +100,13 @@ extern Ticker flasher;
 
 #define UNINIT 0
 
-extern int16_t ax, ay, az;
-extern float Volt, Temperatur, Tilt, Gravity,Pressure,carbondioxide;
-extern int16_t my_aX, my_aY, my_aZ;
+
+extern float Temperatur, Tilt, Gravity,Pressure,carbondioxide;
 
 
 
-extern MPU6050_Base accelgyro;
+
+
 extern bool saveConfig();
 extern void formatSpiffs();
 
@@ -139,5 +138,19 @@ uint32_t times_open;
 uint32_t crc32;
 }
 statistics_t,*p_statistics_t;
+
+typedef struct basic_config {
+uint8_t type_of_display;
+uint8_t use_regulator;
+uint16_t zero_value_sensor;
+uint16_t value_red;
+float value_blue;
+float value_turkis;
+float value_green;
+double faktor_pressure;
+uint32_t crc32;
+}
+basic_config_t,*p_basic_config_t;
+
 
 #endif

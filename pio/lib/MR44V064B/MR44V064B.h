@@ -7,6 +7,7 @@
 #define FRAM_adress 0x50   // 7 Byte address 
 #define Controller_paramter_offset 0x00 
 #define Statistics_offset sizeof(controller_t) + Controller_paramter_offset
+#define basic_config_offset sizeof(statistics_t) + Statistics_offset
 class MR44V064B_Base
 {
     public:
@@ -16,6 +17,8 @@ class MR44V064B_Base
     void read_controller_parameters(p_controller_t data,uint16_t adress);
     void write_statistics(p_statistics_t data,uint16_t adress);
     void read_statistics(p_statistics_t data,uint16_t adress);
+    void write_basic_config(p_basic_config_t data,uint16_t adress);
+    void read_basic_config(p_basic_config_t data,uint16_t adress);
 
 
 

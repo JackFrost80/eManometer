@@ -8,7 +8,6 @@ All rights reserverd by S.Lang <universam@web.de>
 // includes go here
 #include <PubSubClient.h>
 #include "Globals.h"
-#include "MPUOffset.h"
 // #endif
 #include "OneWire.h"
 #include "Wire.h"
@@ -24,7 +23,6 @@ All rights reserverd by S.Lang <universam@web.de>
 #include <FS.h>          //this needs to be first
 #include "tinyexpr.h"
 #include "MCP3221A5T-E.h"
-#include <Ticker.h>
 #include <regex.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -55,6 +53,8 @@ controller_t Controller_;
 p_controller_t p_Controller_ = &Controller_;
 statistics_t Statistic_;
 p_statistics_t p_Statistic_ = &Statistic_;
+basic_config_t Basic_config_;
+p_basic_config_t p_Basic_config_= &Basic_config_; 
 uint32_t open = 0;
 uint32_t close = 0;
 uint32_t open_time = 0.0;
@@ -101,14 +101,11 @@ unsigned long previousTime = 0;
 const long timeoutTime = 2000;
 
 // definitions go here
-MPU6050_Base accelgyro;
 MCP3221_Base ADC_;
 OneWire *oneWire;
 DallasTemperature DS18B20;
 MR44V064B_Base FRAM; 
 DeviceAddress tempDeviceAddress;
-Ticker flasher;
-RunningMedian samples = RunningMedian(MEDIANROUNDSMAX);
 DoubleResetDetector drd(DRD_TIMEOUT, DRD_ADDRESS);
 uint32_t diff_time = 0;
 uint32_t interval_send_data = 30000;
@@ -118,28 +115,7 @@ uint32_t start_time = 0;
 #define TEMP_KELVIN 2
 
 int detectTempSensor(const uint8_t pins[]);
-bool testAccel();
 
-#ifdef USE_DMP
-#include "MPU6050.h"
-
-// MPU control/status vars
-bool dmpReady = false;  // set true if DMP init was successful
-uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
-uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
-uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
-uint16_t fifoCount;     // count of all bytes currently in FIFO
-uint8_t fifoBuffer[64]; // FIFO storage buffer
-
-// orientation/motion vars
-Quaternion q;        // [w, x, y, z]         quaternion container
-VectorInt16 aa;      // [x, y, z]            accel sensor measurements
-VectorInt16 aaReal;  // [x, y, z]            gravity-free accel sensor measurements
-VectorInt16 aaWorld; // [x, y, z]            world-frame accel sensor measurements
-VectorFloat gravity; // [x, y, z]            gravity vector
-float euler[3];      // [psi, theta, phi]    Euler angle container
-float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-#endif
 
 bool shouldSaveConfig = false;
 
@@ -152,27 +128,42 @@ char my_username[TKIDSIZE];
 char my_password[TKIDSIZE];
 char my_job[TKIDSIZE] = "iGauge";
 char my_instance[TKIDSIZE] = "000";
-//char my_polynominal[100] = "-0.00031*tilt^2+0.557*tilt-14.054";
+
 
 String my_ssid;
 String my_psk;
 uint8_t my_api;
 uint32_t my_sleeptime = 15 * 60;
 uint16_t my_port = 80;
-float my_vfact = ADCDIVISOR;
-int16_t my_aX = UNINIT, my_aY = UNINIT, my_aZ = UNINIT;
 uint8_t my_tempscale = TEMP_CELSIUS;
 int8_t my_OWpin = -1;
 
 uint32_t DSreqTime = 0;
-float pitch, roll;
 
-int16_t ax, ay, az;
-float Volt, Temperatur, Pressure, carbondioxide; // , corrGravity;
+float  Temperatur, Pressure, carbondioxide; 
 
 
 
 //iGauge new Stuff 
+
+void i2c_reset_and_init()
+{
+  pinMode(D1,INPUT);
+    digitalWrite(D1,0);
+    for(uint8 i =0;i<18;i++)
+    {
+        
+        delayMicroseconds(10);
+        pinMode(D1,OUTPUT);
+        delayMicroseconds(10);
+        pinMode(D1,INPUT);
+
+    }
+    Wire.begin(D2, D1);
+    Wire.setClock(100000);
+    Wire.setClockStretchLimit(2 * 230);
+    
+}
 
 void AddToFloatAvg(tFloatAvgFilter * io_pFloatAvgFilter,
 tFloatAvgType i_NewValue)
@@ -343,18 +334,6 @@ void saveConfigCallback()
   shouldSaveConfig = true;
 }
 
-void applyOffset()
-{
-  if (my_aX != UNINIT && my_aY != UNINIT && my_aZ != UNINIT)
-  {
-    CONSOLELN(F("applying offsets"));
-    accelgyro.setXAccelOffset(my_aX);
-    accelgyro.setYAccelOffset(my_aY);
-    accelgyro.setZAccelOffset(my_aZ);
-  }
-  else
-    CONSOLELN(F("offsets not available"));
-}
 
 bool readConfig()
 {
@@ -404,8 +383,6 @@ bool readConfig()
             strcpy(my_job, doc["Job"]);
           if (doc.containsKey("Instance"))
             strcpy(my_instance, doc["Instance"]);
-          if (doc.containsKey("Vfact"))
-            my_vfact = doc["Vfact"];
           if (doc.containsKey("TS"))
             my_tempscale = doc["TS"];
           if (doc.containsKey("OWpin"))
@@ -416,9 +393,9 @@ bool readConfig()
             my_psk = (const char *)doc["PSK"];
           
 
-          my_aX = UNINIT;
-          my_aY = UNINIT;
-          my_aZ = UNINIT;
+          //my_aX = UNINIT;
+          //my_aY = UNINIT;
+          //my_aZ = UNINIT;
 
           
 
@@ -544,7 +521,7 @@ String htmlencode(String str)
 bool startConfiguration()
 {
   set_violet();
-  lcd_gotoxy(0,2);
+  lcd_gotoxy(0,2,p_Basic_config_->type_of_display);
   lcd_puts_invert("Konfig... 192.168.4.1");
 
   WiFiManager wifiManager;
@@ -574,8 +551,7 @@ bool startConfiguration()
   WiFiManagerParameter custom_password("password", "Password", my_password, TKIDSIZE);
   WiFiManagerParameter custom_job("job", "Prometheus job", my_job, TKIDSIZE);
   WiFiManagerParameter custom_instance("instance", "Prometheus instance", my_instance, TKIDSIZE);
-  WiFiManagerParameter custom_vfact("vfact", "Battery conversion factor",
-                                    String(my_vfact).c_str(), 7, TYPE_NUMBER);
+  
   WiFiManagerParameter tempscale_list(HTTP_TEMPSCALE_LIST);
   WiFiManagerParameter custom_tempscale("tempscale", "tempscale",
                                         String(my_tempscale).c_str(),
@@ -583,7 +559,7 @@ bool startConfiguration()
 
   wifiManager.addParameter(&custom_name);
   wifiManager.addParameter(&custom_sleep);
-  wifiManager.addParameter(&custom_vfact);
+ 
 
   WiFiManagerParameter custom_tempscale_hint("<label for=\"TS\">Unit of temperature</label>");
   wifiManager.addParameter(&custom_tempscale_hint);
@@ -628,12 +604,8 @@ bool startConfiguration()
   my_tempscale = String(custom_tempscale.getValue()).toInt();
   validateInput(custom_url.getValue(), my_url);
 
-  String tmp = custom_vfact.getValue();
-  tmp.trim();
-  tmp.replace(',', '.');
-  my_vfact = tmp.toFloat();
-  if (my_vfact < ADCDIVISOR * 0.8 || my_vfact > ADCDIVISOR * 1.2)
-    my_vfact = ADCDIVISOR;
+  
+ 
 
   // save the custom parameters to FS
   if (shouldSaveConfig)
@@ -677,8 +649,7 @@ bool startConfigurationNormal()
   WiFiManagerParameter custom_password("password", "Password", my_password, TKIDSIZE);
   WiFiManagerParameter custom_job("job", "Prometheus job", my_job, TKIDSIZE);
   WiFiManagerParameter custom_instance("instance", "Prometheus instance", my_instance, TKIDSIZE);
-  WiFiManagerParameter custom_vfact("vfact", "Battery conversion factor",
-                                    String(my_vfact).c_str(), 7, TYPE_NUMBER);
+  
   WiFiManagerParameter tempscale_list(HTTP_TEMPSCALE_LIST);
   WiFiManagerParameter custom_tempscale("tempscale", "tempscale",
                                         String(my_tempscale).c_str(),
@@ -686,7 +657,7 @@ bool startConfigurationNormal()
 
   wifiManager.addParameter(&custom_name);
   wifiManager.addParameter(&custom_sleep);
-  wifiManager.addParameter(&custom_vfact);
+  
 
   WiFiManagerParameter custom_tempscale_hint("<label for=\"TS\">Unit of temperature</label>");
   wifiManager.addParameter(&custom_tempscale_hint);
@@ -731,13 +702,7 @@ bool startConfigurationNormal()
   my_tempscale = String(custom_tempscale.getValue()).toInt();
   validateInput(custom_url.getValue(), my_url);
 
-  String tmp = custom_vfact.getValue();
-  tmp.trim();
-  tmp.replace(',', '.');
-  my_vfact = tmp.toFloat();
-  if (my_vfact < ADCDIVISOR * 0.8 || my_vfact > ADCDIVISOR * 1.2)
-    my_vfact = ADCDIVISOR;
-
+    
   // save the custom parameters to FS
   if (shouldSaveConfig)
   {
@@ -784,7 +749,7 @@ bool saveConfig()
   doc["Password"] = my_password;
   doc["Job"] = my_job;
   doc["Instance"] = my_instance;
-  doc["Vfact"] = my_vfact;
+  
   doc["TS"] = my_tempscale;
   doc["OWpin"] = my_OWpin;
 
@@ -793,9 +758,7 @@ bool saveConfig()
   doc["PSK"] = WiFi.psk();
 
  
-  doc["aX"] = my_aX;
-  doc["aY"] = my_aY;
-  doc["aZ"] = my_aZ;
+  
 
   File configFile = SPIFFS.open(CFGFILE, "w+");
   if (!configFile)
@@ -921,7 +884,6 @@ bool uploadData(uint8_t service)
       sender.add("token", my_token);
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("temp_units", tempScaleLabel());
-    sender.add("battery", Volt);
     sender.add("type","eManometer");
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
@@ -977,9 +939,6 @@ bool uploadData(uint8_t service)
   if (service == DTTcontrol)
   {
     sender.add("T", scaleTemperature(Temperatur));
-    //sender.add("D", Tilt);
-    sender.add("U", Volt);
-    //sender.add("G", Gravity);
     CONSOLELN(F("\ncalling TCONTROL"));
     return sender.sendTCONTROL(my_server, 4968);
   }
@@ -987,58 +946,6 @@ bool uploadData(uint8_t service)
   return false;
 }
 
-void goodNight(uint32_t seconds)
-{
-
-  uint32_t _seconds = seconds;
-  uint32_t left2sleep = 0;
-  uint32_t validflag = RTCVALIDFLAG;
-
-  drd.stop();
-
-  // workaround for DS not floating
-  pinMode(my_OWpin, OUTPUT);
-  digitalWrite(my_OWpin, LOW);
-
-  // we need another incarnation before work run
-  if (_seconds > MAXSLEEPTIME)
-  {
-    left2sleep = _seconds - MAXSLEEPTIME;
-    ESP.rtcUserMemoryWrite(RTCSLEEPADDR, &left2sleep, sizeof(left2sleep));
-    ESP.rtcUserMemoryWrite(RTCSLEEPADDR + 1, &validflag, sizeof(validflag));
-    CONSOLELN(String(F("\nStep-sleep: ")) + MAXSLEEPTIME + "s; left: " + left2sleep + "s; RT: " + millis());
-    ESP.deepSleep(MAXSLEEPTIME * 1e6, WAKE_RF_DISABLED);
-  }
-  // regular sleep with RF enabled after wakeup
-  else
-  {
-    // clearing RTC to mark next wake
-    left2sleep = 0;
-    ESP.rtcUserMemoryWrite(RTCSLEEPADDR, &left2sleep, sizeof(left2sleep));
-    ESP.rtcUserMemoryWrite(RTCSLEEPADDR + 1, &validflag, sizeof(validflag));
-    CONSOLELN(String(F("\nFinal-sleep: ")) + _seconds + "s; RT: " + millis());
-    // WAKE_RF_DEFAULT --> auto reconnect after wakeup
-    ESP.deepSleep(_seconds * 1e6, WAKE_RF_DEFAULT);
-  }
-  // workaround proper power state init
-  delay(500);
-}
-void sleepManager()
-{
-  uint32_t left2sleep, validflag;
-  ESP.rtcUserMemoryRead(RTCSLEEPADDR, &left2sleep, sizeof(left2sleep));
-  ESP.rtcUserMemoryRead(RTCSLEEPADDR + 1, &validflag, sizeof(validflag));
-
-  // check if we have to incarnate again
-  if (left2sleep != 0 && !drd.detectDoubleReset() && validflag == RTCVALIDFLAG)
-  {
-    goodNight(left2sleep);
-  }
-  else
-  {
-    CONSOLELN(F("Worker run!"));
-  }
-}
 
 void requestTemp()
 {
@@ -1094,87 +1001,6 @@ void initDS18B20()
 bool isDS18B20ready()
 {
   return millis() - DSreqTime > OWinterval;
-}
-
-void initAccel()
-{
-  // join I2C bus (I2Cdev library doesn't do this automatically)
-  Wire.begin(D2, D1);
-  Wire.setClock(100000);
-  Wire.setClockStretchLimit(2 * 230);
-
-  // init the Accel
-  //accelgyro.initialize();
-  //accelgyro.setFullScaleAccelRange(MPU6050_ACCEL_FS_2);
-  //accelgyro.setFullScaleGyroRange(MPU6050_GYRO_FS_250);
-  //accelgyro.setDLPFMode(MPU6050_DLPF_BW_5);
-  //accelgyro.setTempSensorEnabled(true);
-#ifdef USE_DMP
-  //accelgyro.setDMPEnabled(true);
-  //packetSize = accelgyro.dmpGetFIFOPacketSize();
-#endif
-  //accelgyro.setInterruptLatch(0); // pulse
-  //accelgyro.setInterruptMode(1);  // Active Low
-  //accelgyro.setInterruptDrive(1); // Open drain
-  //accelgyro.setRate(17);
-  //accelgyro.setIntDataReadyEnabled(true);
-  //testAccel();
-}
-
-float calculateTilt()
-{
-  //float _ax = ax;
-  //float _ay = ay;
-  //float _az = az;
-  //float pitch = (atan2(_ay, sqrt(_ax * _ax + _az * _az))) * 180.0 / M_PI;
-  //float roll = (atan2(_ax, sqrt(_ay * _ay + _az * _az))) * 180.0 / M_PI;
-  //return sqrt(pitch * pitch + roll * roll);
-  return 1;
-}
-
-bool testAccel()
-{
-  uint8_t res = Wire.status();
-  if (res != I2C_OK)
-    CONSOLELN(String(F("I2C ERROR: ")) + res);
-
-  bool con = accelgyro.testConnection();
-  if (!con)
-    CONSOLELN(F("Acc Test Connection ERROR!"));
-
-  return res == I2C_OK && con == true;
-}
-
-void getAccSample()
-{
-  accelgyro.getAcceleration(&ax, &az, &ay);
-}
-
-float getTilt()
-{
-  uint32_t start = millis();
-  uint8_t i = 0;
-
-  for (; i < MEDIANROUNDSMAX; i++)
-  {
-    while (!accelgyro.getIntDataReadyStatus())
-      delay(2);
-    getAccSample();
-    float _tilt = calculateTilt();
-    samples.add(_tilt);
-
-    if (i >= MEDIANROUNDSMIN && isDS18B20ready())
-      break;
-  }
-  CONSOLE("Samples:");
-  CONSOLE(++i);
-  CONSOLE(" min:");
-  CONSOLE(samples.getLowest());
-  CONSOLE(" max:");
-  CONSOLE(samples.getHighest());
-  CONSOLE(" time:");
-  CONSOLELN(millis() - start);
-  return samples.getAverage(MEDIANAVRG);
 }
 
 float getTemperature(bool block = false)
@@ -1323,44 +1149,6 @@ int detectTempSensor(const uint8_t pins[])
   return -1;
 }
 
-float getBattery()
-{
-  analogRead(A0); // drop first read
-  return analogRead(A0) / my_vfact;
-}
-
-float calculateGravity()
-{
-  //double _tilt = Tilt;
-  //double _temp = Temperatur;
-  //float _gravity = 0;
-  //int err;
-  //te_variable vars[] = {{"tilt", &_tilt}, {"temp", &_temp}};
-  
-}
-
-void flash()
-{
-  // triggers the LED
-  //Volt = getBattery();
-  //if (testAccel())
-   // getAccSample();
-  //Tilt = calculateTilt();
-  //Temperatur = getTemperature(false);
-  //Gravity = calculateGravity();
-  //requestTemp();
-}
-
-bool isSafeMode(float _volt)
-{
-  if (_volt < LOWBATT)
-  {
-    CONSOLELN(F("\nWARNING: low Battery"));
-    return true;
-  }
-  else
-    return false;
-}
 
 void connectBackupCredentials()
 {
@@ -1405,6 +1193,7 @@ void calc_valve_time(p_controller_t values, uint32_t *open, uint32_t *close,uint
 
 void setup()
 {
+  pinMode(MosFET, OUTPUT);
   Serial.begin(115200);
   // Set LED Pins to output
   pinMode(LED_RED , OUTPUT);
@@ -1417,15 +1206,15 @@ void setup()
   digitalWrite(LED_BLUE,0);
   // Check colors :
   digitalWrite(LED_RED ,1);
-  delay(1000);
+  delay(250);
   digitalWrite(LED_RED ,0);
   digitalWrite(LED_GREEN,1);
-  delay(1000);
+  delay(250);
   digitalWrite(LED_GREEN ,0);
   digitalWrite(LED_BLUE,1);
-  delay(1000);
+  delay(250);
   digitalWrite(LED_BLUE,0);
-  ADC_.MCP3221_init(); // Init I2C and Reset broken transmission.
+  i2c_reset_and_init(); // Init I2C and Reset broken transmission.
   FRAM.read_controller_parameters(p_Controller_,Controller_paramter_offset);
   uint32_t calculated_crc = 0xffffffff;
   crc32_array((uint8_t *) p_Controller_,sizeof(controller_t)-4,&calculated_crc);
@@ -1456,11 +1245,29 @@ void setup()
   {
     p_Statistic_->opening_time = 0.0;
     p_Statistic_->times_open = 0;
+    crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
+    p_Statistic_->crc32 = calculated_crc;
   }
+  FRAM.read_basic_config(p_Basic_config_,basic_config_offset);
+  crc32_array((uint8_t *) p_Basic_config_,sizeof(basic_config_t)-4,&calculated_crc);
+  if(p_Basic_config_->crc32 != calculated_crc)
+  {
+    p_Basic_config_->faktor_pressure = 0.0030517578125;
+    p_Basic_config_->type_of_display = 0;
+    p_Basic_config_->use_regulator = 0;
+    p_Basic_config_->value_blue = 0.6;
+    p_Basic_config_->value_green = 1.05;
+    p_Basic_config_->value_red = 1246; // Value equal to 4 bar.
+    p_Basic_config_->value_turkis = 0.95;
+    p_Basic_config_->zero_value_sensor = 0x163;
+    crc32_array((uint8_t *) p_Basic_config_,sizeof(basic_config_t)-4,&calculated_crc);
+    p_Basic_config_->crc32 = calculated_crc;
+  }
+
       
-  delay(500);
-  init_LCD();
-  lcd_gotoxy(0,0);
+  delay(250);
+  init_LCD(p_Basic_config_->type_of_display); 
+  lcd_gotoxy(0,0,p_Basic_config_->type_of_display);
   lcd_puts("eManometer ");
   lcd_puts(FIRMWAREVERSION);
   
@@ -1472,7 +1279,7 @@ void setup()
   CONSOLELN(F("\nFW " FIRMWAREVERSION));
   CONSOLELN(ESP.getSdkVersion());
 
-  sleepManager();
+  
 
   bool validConf = readConfig();
   if (!validConf)
@@ -1522,12 +1329,8 @@ void setup()
   }
   // to make sure we wake up with STA but AP
   WiFi.mode(WIFI_STA);
-  Volt = getBattery();
-  // we try to survive
-  if (isSafeMode(Volt))
-    WiFi.setOutputPower(0);
-  else
-    WiFi.setOutputPower(20.5);
+    // we try to survive
+  WiFi.setOutputPower(20.5);
 
 #ifndef USE_DMP
   //Tilt = getTilt();
@@ -1595,8 +1398,7 @@ void setup()
   //CONSOLELN(Tilt);
   //CONSOLE("Tacc: ");
   //CONSOLELN(accTemp);
-  CONSOLE("Volt: ");
-  CONSOLELN(Volt);
+ 
 
   // call as late as possible since DS needs converge time
   Temperatur = getTemperature(true);
@@ -1646,14 +1448,8 @@ void setup()
     CONSOLELN(F("failed to connect"));
   }
   start_time = millis();
-  // survive - 60min sleep time
-  //if (isSafeMode(Volt))
-  //  my_sleeptime = EMERGENCYSLEEP;
-  //goodNight(my_sleeptime);
-        // Draw characters of the default font
-
   server.begin();
-  pinMode(MosFET, OUTPUT);
+  
   
   
 }
@@ -1710,6 +1506,7 @@ void loop()
             String dead_zone_string;
             String cycle_time_string;
             String compressed_gas_bottle_string;
+            String Type_of_Display_string;
             sprintf((char *)&helper_get,"%.1f",(double) p_Controller_->setpoint_carbondioxide);
             sprintf((char *)&Regler_string,"%.1f",(double) p_Controller_->Setpoint);
             sprintf((char *)&Kp_string,"%.1f",(double) p_Controller_->Kp);
@@ -1734,7 +1531,10 @@ void loop()
                 cycle_time_string = header.substring(index+11,index2);
                 index = header.indexOf("&",index2+1);
                 compressed_gas_bottle_string = header.substring(index2+5,index);
-                client.println("<p> Test2 " + Regler_string + " </p>");
+                index2 = header.indexOf("&",index+1);
+                Type_of_Display_string = header.substring(index+9,index2);
+                client.println("<p> Type of Display " + Type_of_Display_string + " </p>");
+
                 p_Controller_->setpoint_carbondioxide = helper_get.toDouble();
                 p_Controller_->Setpoint = Regler_string.toDouble();
                 p_Controller_->Kp = Kp_string.toDouble();
@@ -1742,10 +1542,19 @@ void loop()
                 p_Controller_->dead_zone = dead_zone_string.toDouble();
                 p_Controller_->cycle_time = cycle_time_string.toInt();
                 p_Controller_->compressed_gas_bottle = compressed_gas_bottle_string.toInt();
+                p_Basic_config_->type_of_display = Type_of_Display_string.toInt();
                 uint32_t calculated_crc = 0;
                 crc32_array((uint8_t *) p_Controller_,sizeof(controller_t)-4,&calculated_crc);
                 p_Controller_->crc32 = calculated_crc;
                 FRAM.write_controller_parameters(p_Controller_,Controller_paramter_offset);
+                crc32_array((uint8_t *) p_Basic_config_,sizeof(p_basic_config_t)-4,&calculated_crc);
+                p_Basic_config_->crc32 = calculated_crc;
+                FRAM.write_basic_config(p_Basic_config_,basic_config_offset);
+                init_LCD(p_Basic_config_->type_of_display); 
+                lcd_gotoxy(0,0,p_Basic_config_->type_of_display);
+                lcd_puts("eManometer ");
+                lcd_puts(FIRMWAREVERSION);
+
 
             }
             sprintf(helper,"%.2f",(double)Pressure);
@@ -1779,6 +1588,24 @@ void loop()
             client.println("Dead Zone <input type='text' id='deadzone' name='deadzone' value='" + dead_zone_string + "'> bar </br>");
             client.println("Zykluszeit <input type='text' id='cycletime' name='cycletime' value='" + cycle_time_string + "'> ms </br>");
             client.println("CO2-Flasche <input type='text' id='gas' name='gas' value='" + compressed_gas_bottle_string + "'></br>");
+            String Display0 = "";
+            String Display1 = "";
+            String Display2 = "";
+            switch(p_Basic_config_->type_of_display)
+            {
+              case 0:
+              Display0="selected";
+              break;
+              case 1:
+              Display1="selected";
+              break;
+              case 2:
+              Display2="selected";
+              break;
+              default:
+              break;
+            }
+            client.println("<select name='Display'> <option value=0" + Display0 +  " >Kein Display</option><option value=1 " + Display1 +  " >SSD1306</option><option value=2 " + Display2 +  " >SH1106</option></select></br>");
             client.println("<input type='hidden' name='UserBrowser' value=''>");
             client.println("<input type='submit' value='Submit'>");
             client.println("</form></p>");
@@ -1828,29 +1655,29 @@ void loop()
     
     if(raw_data >= 0x100)
     {
-      if(raw_data >= 0x163)
-          raw_data -= 0x163; // Set Zero to 0,5V
+      if(raw_data >= p_Basic_config_->zero_value_sensor)
+          raw_data -=p_Basic_config_->zero_value_sensor; // Set Zero to 0,5V
         else
           raw_data = 0;
-      if(raw_data >= 1246)
+      if(raw_data >= p_Basic_config_->value_red)
         {
           set_red();
         }
         else
         {
-          if(carbondioxide < p_Controller_->setpoint_carbondioxide * 0.6)
+          if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_blue)
             {
               set_blue();
             }
             else
             {
-              if(carbondioxide < p_Controller_->setpoint_carbondioxide * 0.95)
+              if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_turkis)
               {
                  set_turkis();
               }
               else
               {
-                if(carbondioxide < p_Controller_->setpoint_carbondioxide * 1.05)
+                if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_green)
                 {
                   set_green();
                 }
@@ -1869,7 +1696,7 @@ void loop()
       
     }
     
-    AddToFloatAvg(&pressure_filtered,((double)raw_data * 0.0030517578125));
+    AddToFloatAvg(&pressure_filtered,((double)raw_data * p_Basic_config_->faktor_pressure));
     Pressure = GetOutputValue(&pressure_filtered);
     double exponent = -10.73797 + (2617.25 / ( Temperatur + 273.15 ));
     carbondioxide = (float)(((double)Pressure + 1.013) * 10 * exp(exponent));
@@ -1882,30 +1709,30 @@ void loop()
     blink++;
     char buffer_[20];
     sprintf(buffer_,"Druck: %.2f bar  ",Pressure);
-    lcd_gotoxy(0,1);
+    lcd_gotoxy(0,1,p_Basic_config_->type_of_display);
     lcd_puts(buffer_);
     sprintf(buffer_,"Temp: %.2f 'C",Temperatur);
-    lcd_gotoxy(0,2);
+    lcd_gotoxy(0,2,p_Basic_config_->type_of_display);
     lcd_puts(buffer_);
     sprintf(buffer_,"CO2: %.2f g/l  ",carbondioxide);
-    lcd_gotoxy(0,3);
+    lcd_gotoxy(0,3,p_Basic_config_->type_of_display);
     lcd_puts(buffer_);
     sprintf(buffer_,"Zeit: %.2f s",p_Statistic_->opening_time/1000);
-    lcd_gotoxy(0,4);
+    lcd_gotoxy(0,4,p_Basic_config_->type_of_display);
     lcd_puts(buffer_);
     sprintf(buffer_,"Anzahl: %d",p_Statistic_->times_open);
-    lcd_gotoxy(0,5);
+    lcd_gotoxy(0,5,p_Basic_config_->type_of_display);
     lcd_puts(buffer_);
     if(p_Controller_->compressed_gas_bottle)
     {
-      lcd_gotoxy(0,6);
+      lcd_gotoxy(0,6,p_Basic_config_->type_of_display);
       lcd_puts("CO2-Flasche");
 
 
     }
     else
     {
-      lcd_gotoxy(0,6);
+      lcd_gotoxy(0,6,p_Basic_config_->type_of_display);
       lcd_puts("Gärung     ");
     }
     

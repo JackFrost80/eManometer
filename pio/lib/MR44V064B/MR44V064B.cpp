@@ -51,3 +51,14 @@ void MR44V064B_Base::write_statistics(p_statistics_t data,uint16_t adress)
     MR44V064B_Base::write_array((uint8_t *) data, adress, sizeof(statistics_t));
 
 }
+
+void MR44V064B_Base::write_basic_config(p_basic_config_t data,uint16_t adress)
+{
+    MR44V064B_Base::write_array((uint8_t *) data, adress, sizeof(basic_config_t));
+
+}
+void MR44V064B_Base::read_basic_config(p_basic_config_t data,uint16_t adress)
+{
+    MR44V064B_Base::read_array((uint8_t *) data, adress, sizeof(basic_config_t));
+
+}
