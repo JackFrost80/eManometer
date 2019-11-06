@@ -1,16 +1,17 @@
 #include "OLED.h"
 #include "display_ssd1306_custom.h"
 
-Display_SSD1306_Custom::Display_SSD1306_Custom()
+Display_SSD1306_Custom::Display_SSD1306_Custom(int displayType)
+	: mDisplayType(displayType)
 {
 
 }
 
 void Display_SSD1306_Custom::doInit()
 {
-	init_LCD();
-	lcd_gotoxy(0,0);
-	lcd_clrscr();
+	init_LCD(mDisplayType);
+	lcd_gotoxy(0,0, mDisplayType);
+	lcd_clrscr(mDisplayType);
 }
 
 void Display_SSD1306_Custom::doPrint(const char* line)
@@ -35,5 +36,5 @@ void Display_SSD1306_Custom::doSetCursor(int x, int y)
 
 void Display_SSD1306_Custom::doSetLine(int y)
 {
-	lcd_gotoxy(0, y);
+	lcd_gotoxy(0, y, mDisplayType);
 }

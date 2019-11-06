@@ -210,7 +210,6 @@ void WiFiManager::handleUpdating()
   // handler for the file upload, get's the sketch bytes, and writes
   // them through the Update object
 
-  flasher.detach();
 
   HTTPUpload &upload = server->upload();
   if (upload.status == UPLOAD_FILE_START)
@@ -1108,7 +1107,7 @@ void WiFiManager::handleOffset()
 {
   DEBUG_WM(F("offset"));
 
-  flasher.detach();
+
 
   // we reset the timeout
   _configPortalStart = millis();
@@ -1121,8 +1120,8 @@ void WiFiManager::handleOffset()
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
 
-  if (offset.getStatus() != "done!")
-    page += F("<META HTTP-EQUIV=\"refresh\" CONTENT=\"120;url=http://192.168.4.1/\">");
+  
+  page += F("<META HTTP-EQUIV=\"refresh\" CONTENT=\"120;url=http://192.168.4.1/\">");
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h1>calibrate Offset</h1><hr>");
   page += F("<table>");
@@ -1135,8 +1134,6 @@ void WiFiManager::handleOffset()
   page += FPSTR(HTTP_END);
 
   server->send(200, "text/html", page);
-  if (offset.getStatus() == "idle")
-    offset.calibrate();
   ESP.reset();
 }
 #endif

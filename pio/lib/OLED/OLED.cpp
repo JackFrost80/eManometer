@@ -123,89 +123,186 @@ void sendCommand_array(uint8_t *data,uint8_t command,uint8_t length)
 	for(uint8_t i = 0;i<length;i++)
 	{
 		Wire.write(*data);
-        data++;
+		data++;
 	}
 	
 	Wire.endTransmission(1);
 }
 
-void lcd_clrscr()
+void lcd_clrscr(uint8_t display)
 {
-	for (uint8_t page = 0; page < 8; page++) {
-
-		// Set the current RAM pointer to the start of the currently
-		// selected page.
-		sendCommand(0x00); // Set column number 0 (low nibble)
-		sendCommand(0x10); // Set column number 0 (high nibble)
-		sendCommand(0xB0 | (page & 0x0F)); // Set page number
-
-		// Send a single page (128 bytes) of data.
-		// Without knowing the rest of your program I don't know the right
-		// data sending routines to use, so I made them up. Change it to
-		// do it how your program expects.  Maybe with your SendArray
-		// function.
-
-		uint8_t helper = 0x00 ;
-		for (uint8_t col = 0; col < 132; col++) {
-			sendCommand_array(&helper,DATA_LCD,1);
+	switch(display)
+	{
+		case 0:  // no display
+		break;
+		case 1:  //SSD1306
+		{
+			for(uint8_t i=0;i<32;i++)
+			{
+				Wire.beginTransmission(OLED_Adress);
+    			Wire.write(DATA_LCD);
+				for(uint8_t ji = 0;i<32;i++)  // Wire buffer 32 Byte
+				{
+					Wire.write(0x00); // Clear display
+				}
+				Wire.endTransmission(1);
+			}
+			
 		}
+		break; 
+		case 2: //SH1106
+		{
+			for (uint8_t page = 0; page < 8; page++) 
+			{
+				// Set the current RAM pointer to the start of the currently
+				// selected page.
+				sendCommand(0x00); // Set column number 0 (low nibble)
+				sendCommand(0x10); // Set column number 0 (high nibble)
+				sendCommand(0xB0 | (page & 0x0F)); // Set page number
+				// Send a single page (128 bytes) of data.
+				// Without knowing the rest of your program I don't know the right
+				// data sending routines to use, so I made them up. Change it to
+				// do it how your program expects.  Maybe with your SendArray
+				// function.
+				uint8_t helper = 0x00 ;
+				for (uint8_t col = 0; col < 132; col++) 
+				{
+					sendCommand_array(&helper,DATA_LCD,1);
+				}		
+			}
+		}
+		break;
+		default:
+		break;
 	}
 }
 
-void lcd_gotoxy(uint8_t x, uint8_t y){
-	x *= 6;
+void lcd_gotoxy(uint8_t x, uint8_t y,uint8_t display){
 	uint8_t helper[4];
-		helper[0] = (x+2) & 0x0F;	// lower nibble
-		sendCommand_array(helper,COMMAND_LCD,1);  // Write data to I2C
-		helper[0] = 0x10 | (x+2) >> 4;		// set column start
-		sendCommand_array(helper,COMMAND_LCD,1);  // Write data to I2C
-		helper[0] = 0xB0 | (y & 0x0F); //page
-		sendCommand_array(helper,COMMAND_LCD,1);  // Write data to I2C
+	switch(display)
+	{
+		case 0:  // no display
+		break;
+		case 1:
+		{
+		helper[0] = 0xb0 + y;	// set page start to y
+		helper[1] = 0x21;		// set column start
+		helper[2] = x; 			// to x
 		helper[3] = 0x7f;		// set column end to 127
-		//twi_write(&TWIE,helper,LCD_I2C_ADDR,0x00,3,0,0,1);  // Write data to I2C
+		sendCommand_array(helper,COMMAND_LCD,4); // Write data to I2C
+		}
+		break; 
+		case 2: //SH1106
+		{
+			x *= 6;
+			
+			helper[0] = (x+2) & 0x0F;	// lower nibble
+			sendCommand_array(helper,COMMAND_LCD,1);  // Write data to I2C
+			helper[0] = 0x10 | (x+2) >> 4;		// set column start
+			sendCommand_array(helper,COMMAND_LCD,1);  // Write data to I2C
+			helper[0] = 0xB0 | (y & 0x0F); //page
+			sendCommand_array(helper,COMMAND_LCD,1);  // Write data to I2C
+			helper[0] = 0x7f;		// set column end to 127
+			sendCommand_array(helper,COMMAND_LCD,1);  // Write data to I2C	
+		}
+		break;
+		default:
+		break;
+	}
 	
 	
 }
 
-void lcd_home(){
-	lcd_gotoxy(0, 0);
+void lcd_home(uint8_t display){
+	lcd_gotoxy(0, 0,display);
 }
 
 
 
-void init_LCD()
+void init_LCD(uint8_t display)
 {
 	
-	sendCommand(0xAE);    /*display off*/
-
-		sendCommand(0x02);    /*set lower column address*/
-		sendCommand(0x10);    /*set higher column address*/
-		sendCommand(0x40);//0x40);    /*set display start line*/
-		sendCommand(0xB0);    /*set page address*/
-		sendCommand(0x81);    /*contract control*/
-		sendCommand(0x80);//contrast);    /*128*/
-		sendCommand(0xA1);    /*set segment remap*/
-		sendCommand(0xA6);//invertSetting);    /*normal / reverse*/
-		sendCommand(0xA8);    /*multiplex ratio*/
-		sendCommand(0x3F);    /*duty = 1/32*/
-		sendCommand(0xAD);    /*set charge pump enable*/
-		sendCommand(0x8B);     /*external VCC   */
-		sendCommand(0x30);    // | Vpp);    /*0X30---0X33  set VPP   9V liangdu!!!!*/
-		sendCommand(0xC8);    /*Com scan direction*/
-		sendCommand(0xD3);    /*set display offset*/
-		sendCommand(0x00);   /*   0x20  */
-		sendCommand(0xD5);    /*set osc division*/
-		sendCommand(0x80);
-		sendCommand(0xD9);    /*set pre-charge period*/
-		sendCommand(0x1F);    /*0x22*/
-		sendCommand(0xDA);    /*set COM pins*/
-		sendCommand(0x12);
-		sendCommand(0xDB);    /*set vcomh*/
-		sendCommand(0x40);
-		sendCommand(0xAF);    /*display ON*/
-		lcd_clrscr();
-        
-	
+switch(display)
+	{
+		case 0:  // no display
+		break;
+		case 1:  //SSD1306
+		{
+			uint8_t init1[] = {
+				SSD1306_DISPLAYOFF,                   // 0xAE
+				SSD1306_SETDISPLAYCLOCKDIV,           // 0xD5
+				0x80,                                 // the suggested ratio 0x80
+				SSD1306_SETMULTIPLEX }; // 0xA8
+			sendCommand_array(init1,DATA_LCD,4);
+			sendCommand(SSD1306_LCDHEIGHT - 1);
+			uint8_t init2[] = {
+				SSD1306_SETDISPLAYOFFSET,             // 0xD3
+				0x0,                                  // no offset
+				SSD1306_SETSTARTLINE | 0x0,           // line #0
+				SSD1306_CHARGEPUMP }; // 0x8D
+			sendCommand_array(init2,DATA_LCD,4);
+			sendCommand(0x10);  
+			//helper = (dispAttr == SSD1306_EXTERNALVCC) ? 0x10 : 0x14;
+			uint8_t init3[] = {
+				SSD1306_MEMORYMODE,                   // 0x20
+				0x00,                                 // 0x0 act like ks0108
+				SSD1306_SEGREMAP | 0x1,
+				SSD1306_COMSCANDEC };
+			sendCommand_array(init3,DATA_LCD,4);
+			uint8_t init4[] = {
+				SSD1306_SETCOMPINS,                 // 0xDA
+				0x12,
+				SSD1306_SETCONTRAST };              // 0x81
+			sendCommand_array(init4,DATA_LCD,3);
+			//helper = (dispAttr == SSD1306_EXTERNALVCC) ? 0x9F : 0xCF;
+			sendCommand(0x9F); 
+			sendCommand(SSD1306_SETPRECHARGE); 
+			//helper = (dispAttr == SSD1306_EXTERNALVCC) ? 0x22 : 0xF1;
+			sendCommand(0x22); 
+			uint8_t  init5[] = {
+				SSD1306_SETVCOMDETECT,               // 0xDB
+				0x40,
+				SSD1306_DISPLAYALLON_RESUME,         // 0xA4
+				SSD1306_NORMALDISPLAY,               // 0xA6
+				SSD1306_DEACTIVATE_SCROLL,
+				SSD1306_DISPLAYON }; // Main screen turn on
+			sendCommand_array(init5,DATA_LCD,6);
+		}
+		break; 
+		case 2: //SH1106
+		{
+			sendCommand(0xAE);    /*display off*/
+			sendCommand(0x02);    /*set lower column address*/
+			sendCommand(0x10);    /*set higher column address*/
+			sendCommand(0x40);//0x40);    /*set display start line*/
+			sendCommand(0xB0);    /*set page address*/
+			sendCommand(0x81);    /*contract control*/
+			sendCommand(0x80);//contrast);    /*128*/
+			sendCommand(0xA1);    /*set segment remap*/
+			sendCommand(0xA6);//invertSetting);    /*normal / reverse*/
+			sendCommand(0xA8);    /*multiplex ratio*/
+			sendCommand(0x3F);    /*duty = 1/32*/
+			sendCommand(0xAD);    /*set charge pump enable*/
+			sendCommand(0x8B);     /*external VCC   */
+			sendCommand(0x30);    // | Vpp);    /*0X30---0X33  set VPP   9V liangdu!!!!*/
+			sendCommand(0xC8);    /*Com scan direction*/
+			sendCommand(0xD3);    /*set display offset*/
+			sendCommand(0x00);   /*   0x20  */
+			sendCommand(0xD5);    /*set osc division*/
+			sendCommand(0x80);
+			sendCommand(0xD9);    /*set pre-charge period*/
+			sendCommand(0x1F);    /*0x22*/
+			sendCommand(0xDA);    /*set COM pins*/
+			sendCommand(0x12);
+			sendCommand(0xDB);    /*set vcomh*/
+			sendCommand(0x40);
+			sendCommand(0xAF);    /*display ON*/
+		}
+		break;
+		default:
+		break;
+	}
+	lcd_clrscr(display);
 }
 
 void lcd_putc(char c){

@@ -5,7 +5,7 @@
 
 class Display_SSD1306_Custom : public DisplayInterface {
 	public:
-		Display_SSD1306_Custom();
+		Display_SSD1306_Custom(int displayType);
 
 	private:
 		virtual void doInit();
@@ -17,6 +17,7 @@ class Display_SSD1306_Custom : public DisplayInterface {
 
 	private:
 		int mLine{0};
+		int mDisplayType;
 };
 
 #endif
