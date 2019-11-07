@@ -15,7 +15,7 @@ All rights reserverd by S.Lang <universam@web.de>
 #include "DallasTemperature.h"
 #include "DoubleResetDetector.h" // https://github.com/datacute/DoubleResetDetector
 #include "RunningMedian.h"
-#include "WiFiManagerKT.h"
+#include "webserver.h"
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
@@ -132,7 +132,7 @@ uint32_t DSreqTime = 0;
 
 float  Temperatur, Pressure, carbondioxide; 
 
-WiFiManager* wifiManager;
+Webserver* wifiManager;
 
 //iGauge new Stuff 
 
@@ -513,7 +513,7 @@ bool startConfiguration()
   lcd_gotoxy(0,2,p_Basic_config_->type_of_display);
   lcd_puts_invert("Konfig... 192.168.4.1");
 
-  WiFiManager wifiManager;
+  Webserver wifiManager;
 
   wifiManager.setConfigPortalTimeout(PORTALTIMEOUT);
   wifiManager.setSaveConfigCallback(saveConfigCallback);
@@ -611,7 +611,7 @@ bool startConfiguration()
 bool startConfigurationNormal()
 {
 
-  wifiManager = new WiFiManager();
+  wifiManager = new Webserver();
   
   wifiManager->setConfigPortalTimeout(PORTALTIMEOUT);
   wifiManager->setSaveConfigCallback(saveConfigCallback);

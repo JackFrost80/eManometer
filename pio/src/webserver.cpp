@@ -18,7 +18,7 @@
    Licensed under MIT license
  **************************************************************/
 
-#include "WiFiManagerKT.h"
+#include "webserver.h"
 #include <ArduinoJson.h>
 
 WiFiManagerParameter::WiFiManagerParameter(const char *custom)
@@ -91,17 +91,17 @@ const char *WiFiManagerParameter::getCustomHTML()
   return _customHTML;
 }
 
-WiFiManager::WiFiManager()
+Webserver::Webserver()
 {
   //Do a network scan before setting up an access point so as not to close WiFiNetwork while scanning.
   numberOfNetworks = scanWifiNetworks(networkIndicesptr);
 }
-WiFiManager::~WiFiManager()
+Webserver::~Webserver()
 {
   free(networkIndices); //indices array no longer required so free memory
 }
 
-void WiFiManager::addParameter(WiFiManagerParameter *p)
+void Webserver::addParameter(WiFiManagerParameter *p)
 {
   _params[_paramsCount] = p;
   _paramsCount++;
@@ -109,14 +109,14 @@ void WiFiManager::addParameter(WiFiManagerParameter *p)
   DEBUG_WM(p->getID());
 }
 
-void WiFiManager::header()
+void Webserver::header()
 {
   server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server->sendHeader("Pragma", "no-cache");
   server->sendHeader("Expires", "-1");
 }
 
-void WiFiManager::setupConfigPortal()
+void Webserver::setupConfigPortal()
 {
   stopConfigPortal = false; //Signal not to close config portal
   /*This library assumes autoconnect is set to 1. It usually is
@@ -168,55 +168,55 @@ void WiFiManager::setupConfigPortal()
   dnsServer->start(DNS_PORT, "*", WiFi.softAPIP());
 
   /* Setup web pages: root, wifi config pages, SO captive portal detectors and not found. */
-  server->on("/", std::bind(&WiFiManager::handleRoot, this));
-  server->on("/wifi", std::bind(&WiFiManager::handleWifi, this));
-  server->on("/wifisave", std::bind(&WiFiManager::handleWifiSave, this));
-  server->on("/close", std::bind(&WiFiManager::handleServerClose, this));
-  server->on("/i", std::bind(&WiFiManager::handleInfo, this));
-  server->on("/info", std::bind(&WiFiManager::handleiSpindel, this));
-  server->on("/state", std::bind(&WiFiManager::handleState, this));
-  server->on("/scan", std::bind(&WiFiManager::handleScan, this));
-  server->on("/mnt", std::bind(&WiFiManager::handleMnt, this));
+  server->on("/", std::bind(&Webserver::handleRoot, this));
+  server->on("/wifi", std::bind(&Webserver::handleWifi, this));
+  server->on("/wifisave", std::bind(&Webserver::handleWifiSave, this));
+  server->on("/close", std::bind(&Webserver::handleServerClose, this));
+  server->on("/i", std::bind(&Webserver::handleInfo, this));
+  server->on("/info", std::bind(&Webserver::handleiSpindel, this));
+  server->on("/state", std::bind(&Webserver::handleState, this));
+  server->on("/scan", std::bind(&Webserver::handleScan, this));
+  server->on("/mnt", std::bind(&Webserver::handleMnt, this));
   //server->on("/offset", std::bind(&WiFiManager::handleOffset, this));
-  server->on("/reset", std::bind(&WiFiManager::handleReset, this));
-  server->on("/update", HTTP_POST, std::bind(&WiFiManager::handleUpdateDone, this), std::bind(&WiFiManager::handleUpdating, this));
-  server->onNotFound(std::bind(&WiFiManager::handleNotFound, this));
+  server->on("/reset", std::bind(&Webserver::handleReset, this));
+  server->on("/update", HTTP_POST, std::bind(&Webserver::handleUpdateDone, this), std::bind(&Webserver::handleUpdating, this));
+  server->onNotFound(std::bind(&Webserver::handleNotFound, this));
   server->begin(); // Web server start
   DEBUG_WM(F("HTTP server started"));
 }
 
-boolean WiFiManager::startWebserver()
+boolean Webserver::startWebserver()
 {
   server.reset(new ESP8266WebServer(80));
 
   /* Setup web pages: root, wifi config pages, SO captive portal detectors and not found. */
-  server->on("/", std::bind(&WiFiManager::handleRoot, this));
-  server->on("/wifi", std::bind(&WiFiManager::handleWifi, this));
-  server->on("/wifisave", std::bind(&WiFiManager::handleWifiSave, this));
-  server->on("/close", std::bind(&WiFiManager::handleServerClose, this));
-  server->on("/i", std::bind(&WiFiManager::handleInfo, this));
-  server->on("/info", std::bind(&WiFiManager::handleiSpindel, this));
-  server->on("/ajax", std::bind(&WiFiManager::handleAjaxRefresh, this));
-  server->on("/state", std::bind(&WiFiManager::handleState, this));
-  server->on("/scan", std::bind(&WiFiManager::handleScan, this));
-  server->on("/mnt", std::bind(&WiFiManager::handleMnt, this));
+  server->on("/", std::bind(&Webserver::handleRoot, this));
+  server->on("/wifi", std::bind(&Webserver::handleWifi, this));
+  server->on("/wifisave", std::bind(&Webserver::handleWifiSave, this));
+  server->on("/close", std::bind(&Webserver::handleServerClose, this));
+  server->on("/i", std::bind(&Webserver::handleInfo, this));
+  server->on("/info", std::bind(&Webserver::handleiSpindel, this));
+  server->on("/ajax", std::bind(&Webserver::handleAjaxRefresh, this));
+  server->on("/state", std::bind(&Webserver::handleState, this));
+  server->on("/scan", std::bind(&Webserver::handleScan, this));
+  server->on("/mnt", std::bind(&Webserver::handleMnt, this));
   //server->on("/offset", std::bind(&WiFiManager::handleOffset, this));
-  server->on("/reset", std::bind(&WiFiManager::handleReset, this));
-  server->on("/update", HTTP_POST, std::bind(&WiFiManager::handleUpdateDone, this), std::bind(&WiFiManager::handleUpdating, this));
-  server->onNotFound(std::bind(&WiFiManager::handleNotFound, this));
+  server->on("/reset", std::bind(&Webserver::handleReset, this));
+  server->on("/update", HTTP_POST, std::bind(&Webserver::handleUpdateDone, this), std::bind(&Webserver::handleUpdating, this));
+  server->onNotFound(std::bind(&Webserver::handleNotFound, this));
   server->begin(); // Web server start
   DEBUG_WM(F("HTTP server started"));
 
   server->begin();
 }
 
-void WiFiManager::process()
+void Webserver::process()
 {
   if (dnsServer) { dnsServer->processNextRequest(); }
   if (server) { server->handleClient(); }
 }
 
-void WiFiManager::handleUpdating()
+void Webserver::handleUpdating()
 {
   // handler for the file upload, get's the sketch bytes, and writes
   // them through the Update object
@@ -263,7 +263,7 @@ void WiFiManager::handleUpdating()
   delay(0);
 }
 
-void WiFiManager::handleUpdateDone()
+void Webserver::handleUpdateDone()
 {
   DEBUG_WM(F("Handle update done"));
   if (captivePortal())
@@ -295,7 +295,7 @@ void WiFiManager::handleUpdateDone()
   ESP.restart();
 }
 
-boolean WiFiManager::autoConnect()
+boolean Webserver::autoConnect()
 {
   String ssid = "ESP" + String(ESP.getChipId());
   return autoConnect(ssid.c_str(), NULL);
@@ -306,7 +306,7 @@ method will block until WiFi connects. Sketch can avoid
 blocking call then use (WiFi.status()==WL_CONNECTED) test to see if connected yet.
 See some discussion at https://github.com/tzapu/WiFiManager/issues/68
 */
-boolean WiFiManager::autoConnect(char const *apName, char const *apPassword)
+boolean Webserver::autoConnect(char const *apName, char const *apPassword)
 {
   DEBUG_WM(F(""));
   DEBUG_WM(F("AutoConnect"));
@@ -336,13 +336,13 @@ boolean WiFiManager::autoConnect(char const *apName, char const *apPassword)
   return startConfigPortal(apName, apPassword);
 }
 
-boolean WiFiManager::startConfigPortal()
+boolean Webserver::startConfigPortal()
 {
   String ssid = "ESP" + String(ESP.getChipId());
   return startConfigPortal(ssid.c_str(), NULL);
 }
 
-boolean WiFiManager::startConfigPortal(char const *apName, char const *apPassword)
+boolean Webserver::startConfigPortal(char const *apName, char const *apPassword)
 {
   //setup AP
   int connRes = WiFi.waitForConnectResult();
@@ -437,7 +437,7 @@ boolean WiFiManager::startConfigPortal(char const *apName, char const *apPasswor
   return WiFi.status() == WL_CONNECTED;
 }
 
-boolean WiFiManager::startConfigPortalNormal(char const *apName, char const *apPassword)
+boolean Webserver::startConfigPortalNormal(char const *apName, char const *apPassword)
 {
   connect = false;
   setupConfigPortalNormal();
@@ -496,7 +496,7 @@ boolean WiFiManager::startConfigPortalNormal(char const *apName, char const *apP
  
 }
 
-int WiFiManager::connectWifi(String ssid, String pass)
+int Webserver::connectWifi(String ssid, String pass)
 {
   DEBUG_WM(F("Connecting wifi with new parameters..."));
   if (ssid != "")
@@ -530,7 +530,7 @@ int WiFiManager::connectWifi(String ssid, String pass)
   return connRes;
 }
 
-uint8_t WiFiManager::waitForConnectResult()
+uint8_t Webserver::waitForConnectResult()
 {
   if (_connectTimeout == 0)
   {
@@ -566,7 +566,7 @@ uint8_t WiFiManager::waitForConnectResult()
   }
 }
 
-void WiFiManager::startWPS()
+void Webserver::startWPS()
 {
   DEBUG_WM(F("START WPS"));
   WiFi.beginWPSConfig();
@@ -574,7 +574,7 @@ void WiFiManager::startWPS()
 }
 //Convenient for debugging but wasteful of program space.
 //Remove if short of space
-char *WiFiManager::getStatus(int status)
+char *Webserver::getStatus(int status)
 {
   switch (status)
   {
@@ -593,12 +593,12 @@ char *WiFiManager::getStatus(int status)
   }
 }
 
-String WiFiManager::getConfigPortalSSID()
+String Webserver::getConfigPortalSSID()
 {
   return _apName;
 }
 
-void WiFiManager::resetSettings()
+void Webserver::resetSettings()
 {
   DEBUG_WM(F("previous settings invalidated"));
   WiFi.disconnect(true);
@@ -609,51 +609,51 @@ void WiFiManager::resetSettings()
   delay(200);
   return;
 }
-void WiFiManager::setTimeout(unsigned long seconds)
+void Webserver::setTimeout(unsigned long seconds)
 {
   setConfigPortalTimeout(seconds);
 }
 
-void WiFiManager::setConfigPortalTimeout(unsigned long seconds)
+void Webserver::setConfigPortalTimeout(unsigned long seconds)
 {
   _configPortalTimeout = seconds * 1000;
 }
 
-void WiFiManager::setConnectTimeout(unsigned long seconds)
+void Webserver::setConnectTimeout(unsigned long seconds)
 {
   _connectTimeout = seconds * 1000;
 }
 
-void WiFiManager::setDebugOutput(boolean debug)
+void Webserver::setDebugOutput(boolean debug)
 {
   _debug = debug;
 }
 
-void WiFiManager::setAPStaticIPConfig(IPAddress ip, IPAddress gw, IPAddress sn)
+void Webserver::setAPStaticIPConfig(IPAddress ip, IPAddress gw, IPAddress sn)
 {
   _ap_static_ip = ip;
   _ap_static_gw = gw;
   _ap_static_sn = sn;
 }
 
-void WiFiManager::setSTAStaticIPConfig(IPAddress ip, IPAddress gw, IPAddress sn)
+void Webserver::setSTAStaticIPConfig(IPAddress ip, IPAddress gw, IPAddress sn)
 {
   _sta_static_ip = ip;
   _sta_static_gw = gw;
   _sta_static_sn = sn;
 }
 
-void WiFiManager::setMinimumSignalQuality(int quality)
+void Webserver::setMinimumSignalQuality(int quality)
 {
   _minimumQuality = quality;
 }
 
-void WiFiManager::setBreakAfterConfig(boolean shouldBreak)
+void Webserver::setBreakAfterConfig(boolean shouldBreak)
 {
   _shouldBreakAfterConfig = shouldBreak;
 }
 
-void WiFiManager::reportStatus(String &page)
+void Webserver::reportStatus(String &page)
 {
   if (WiFi.SSID() != "")
   {
@@ -679,7 +679,7 @@ void WiFiManager::reportStatus(String &page)
 }
 
 /** Handle root or redirect to captive portal */
-void WiFiManager::handleRoot()
+void Webserver::handleRoot()
 {
   DEBUG_WM(F("Handle root"));
   if (captivePortal())
@@ -720,7 +720,7 @@ void WiFiManager::handleRoot()
 }
 
 /** Wifi config page handler */
-void WiFiManager::handleWifi()
+void Webserver::handleWifi()
 {
   header();
   String page = FPSTR(HTTP_HEAD);
@@ -866,7 +866,7 @@ void WiFiManager::handleWifi()
 }
 
 /** Handle the WLAN save form and redirect to WLAN config page again */
-void WiFiManager::handleWifiSave()
+void Webserver::handleWifiSave()
 {
   DEBUG_WM(F("WiFi save"));
 
@@ -931,7 +931,7 @@ void WiFiManager::handleWifiSave()
   connect = true; //signal ready to connect/reset
 }
 /** Handle shut down the server page */
-void WiFiManager::handleServerClose()
+void Webserver::handleServerClose()
 {
   DEBUG_WM(F("Server Close"));
   header();
@@ -956,7 +956,7 @@ void WiFiManager::handleServerClose()
   DEBUG_WM(F("Sent server close page"));
 }
 /** Handle the info page */
-void WiFiManager::handleInfo()
+void Webserver::handleInfo()
 {
   DEBUG_WM(F("Info"));
   header();
@@ -1038,7 +1038,7 @@ void WiFiManager::handleInfo()
 }
 
 /** Handle the info page */
-void WiFiManager::handleiSpindel()
+void Webserver::handleiSpindel()
 {
   DEBUG_WM(F("iSpindel"));
 
@@ -1077,7 +1077,7 @@ void WiFiManager::handleiSpindel()
   DEBUG_WM(F("Sent iSpindel info page"));
 }
 
-void WiFiManager::handleAjaxRefresh()
+void Webserver::handleAjaxRefresh()
 {
   DynamicJsonDocument doc(1024);
 
@@ -1092,7 +1092,7 @@ void WiFiManager::handleAjaxRefresh()
 }
 
 /** Handle the info page */
-void WiFiManager::handleMnt()
+void Webserver::handleMnt()
 {
   DEBUG_WM(F("Maintenance page"));
 
@@ -1162,7 +1162,7 @@ void WiFiManager::handleOffset()
 #endif
 
 /** Handle the state page */
-void WiFiManager::handleState()
+void Webserver::handleState()
 {
   DEBUG_WM(F("State - json"));
   header();
@@ -1191,7 +1191,7 @@ void WiFiManager::handleState()
 }
 
 /** Handle the scan page */
-void WiFiManager::handleScan()
+void Webserver::handleScan()
 {
   DEBUG_WM(F("State - json"));
   header();
@@ -1238,7 +1238,7 @@ void WiFiManager::handleScan()
 }
 
 /** Handle the reset page */
-void WiFiManager::handleReset()
+void Webserver::handleReset()
 {
   DEBUG_WM(F("Reset"));
   header();
@@ -1261,7 +1261,7 @@ void WiFiManager::handleReset()
   delay(2000);
 }
 
-void WiFiManager::handleNotFound()
+void Webserver::handleNotFound()
 {
   if (captivePortal())
   { // If caprive portal redirect instead of displaying the error page.
@@ -1286,7 +1286,7 @@ void WiFiManager::handleNotFound()
 
 /** Redirect to captive portal if we got a request for another domain. Return true in
 that case so the page handler do not try to handle the request again. */
-boolean WiFiManager::captivePortal()
+boolean Webserver::captivePortal()
 {
   if (!isIp(server->hostHeader()) && server->hostHeader() != (String(myHostname)))
   {
@@ -1301,32 +1301,32 @@ boolean WiFiManager::captivePortal()
 }
 
 //start up config portal callback
-void WiFiManager::setAPCallback(void (*func)(WiFiManager *myWiFiManager))
+void Webserver::setAPCallback(void (*func)(Webserver *myWiFiManager))
 {
   _apcallback = func;
 }
 
 //start up save config callback
-void WiFiManager::setSaveConfigCallback(void (*func)(void))
+void Webserver::setSaveConfigCallback(void (*func)(void))
 {
   _savecallback = func;
 }
 
 //sets a custom element to add to head, like a new style tag
-void WiFiManager::setCustomHeadElement(const char *element)
+void Webserver::setCustomHeadElement(const char *element)
 {
   _customHeadElement = element;
 }
 
 //if this is true, remove duplicated Access Points - defaut true
-void WiFiManager::setRemoveDuplicateAPs(boolean removeDuplicates)
+void Webserver::setRemoveDuplicateAPs(boolean removeDuplicates)
 {
   _removeDuplicateAPs = removeDuplicates;
 }
 
 //Scan for WiFiNetworks in range and sort by signal strength
 //space for indices array allocated on the heap and should be freed when no longer required
-int WiFiManager::scanWifiNetworks(int **indicesptr)
+int Webserver::scanWifiNetworks(int **indicesptr)
 {
   int n = WiFi.scanNetworks();
   DEBUG_WM(F("Scan done"));
@@ -1393,7 +1393,7 @@ int WiFiManager::scanWifiNetworks(int **indicesptr)
 }
 
 template <typename Generic>
-void WiFiManager::DEBUG_WM(Generic text)
+void Webserver::DEBUG_WM(Generic text)
 {
   if (_debug)
   {
@@ -1402,7 +1402,7 @@ void WiFiManager::DEBUG_WM(Generic text)
   }
 }
 
-int WiFiManager::getRSSIasQuality(int RSSI)
+int Webserver::getRSSIasQuality(int RSSI)
 {
   int quality = 0;
 
@@ -1422,7 +1422,7 @@ int WiFiManager::getRSSIasQuality(int RSSI)
 }
 
 /** Is this an IP? */
-boolean WiFiManager::isIp(String str)
+boolean Webserver::isIp(String str)
 {
   for (unsigned int i = 0; i < str.length(); i++)
   {
@@ -1436,7 +1436,7 @@ boolean WiFiManager::isIp(String str)
 }
 
 /** IP to String? */
-String WiFiManager::toStringIp(IPAddress ip)
+String Webserver::toStringIp(IPAddress ip)
 {
   String res = "";
   for (int i = 0; i < 3; i++)

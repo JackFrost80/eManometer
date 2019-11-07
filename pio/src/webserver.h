@@ -187,14 +187,14 @@ private:
 
   void init(const char *id, const char *placeholder, const char *defaultValue, int length, const char *custom, int labelPlacement);
 
-  friend class WiFiManager;
+  friend class Webserver;
 };
 
-class WiFiManager
+class Webserver
 {
 public:
-  WiFiManager();
-  ~WiFiManager();
+  Webserver();
+  ~Webserver();
 
   boolean autoConnect();                                                  //Deprecated. Do not use.
   boolean autoConnect(char const *apName, char const *apPassword = NULL); //Deprecated. Do not use.
@@ -233,7 +233,7 @@ public:
   //sets config for a static IP
   void setSTAStaticIPConfig(IPAddress ip, IPAddress gw, IPAddress sn);
   //called when AP mode and config portal is started
-  void setAPCallback(void (*func)(WiFiManager *));
+  void setAPCallback(void (*func)(Webserver *));
   //called when settings have been changed and connection was successful
   void setSaveConfigCallback(void (*func)(void));
   //adds a custom parameter
@@ -332,7 +332,7 @@ private:
   boolean stopConfigPortal = false;
   boolean _debug = true;
 
-  void (*_apcallback)(WiFiManager *) = NULL;
+  void (*_apcallback)(Webserver *) = NULL;
   void (*_savecallback)(void) = NULL;
 
   WiFiManagerParameter *_params[WIFI_MANAGER_MAX_PARAMS];
