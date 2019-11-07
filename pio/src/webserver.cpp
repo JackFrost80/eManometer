@@ -1053,14 +1053,19 @@ void Webserver::handleiSpindel()
   page += FPSTR(ajaxRefresh);
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h1>Info</h1><hr>");
-  page += F("<h2><table>");
-  page += F("&deg;</td></tr>");
+  page += F("<h3><table>");
   page += F("<tr><td>Pressure:</td><td>");
   page += F("<div class=\"info-pressure\" />");;
   page += F("<tr><td>Temperature:</td><td>");
   page += F("<div class=\"info-temperature\" />");
+  page += F("<tr><td>CO2:</td><td>");
+  page += F("<div class=\"info-co2\" />");
+  page += F("<tr><td>Valve open time:</td><td>");
+  page += F("<div class=\"info-opening-time\" />");
+  page += F("<tr><td>Num of openings:</td><td>");
+  page += F("<div class=\"info-num-openings\" />");
   page += F("</td></tr>");
-  page += F("</table></h2>");
+  page += F("</table></h3>");
   page += F("<hr><dl>");
   page += F("<dt><h3>Firmware</h3></dt>");
   page += F("<dd>Version: ");
@@ -1081,9 +1086,21 @@ void Webserver::handleAjaxRefresh()
 {
   DynamicJsonDocument doc(1024);
 
-  doc["temperature"] = Temperatur;
-  doc["pressure"] = Pressure;
-  doc["co2"] = carbondioxide;
+  char buf[64];
+
+  snprintf(buf, sizeof(buf), "%.2f °%s", scaleTemperature(Temperatur), tempScaleLabel().c_str());
+  doc["temperature"] = buf;
+
+  snprintf(buf, sizeof(buf), "%.2f bar", Pressure);
+  doc["pressure"] = buf;
+
+  snprintf(buf, sizeof(buf), "%.2f g/l", carbondioxide);
+  doc["co2"] = buf;
+
+  snprintf(buf, sizeof(buf), "%.2f s", p_Statistic_->opening_time / 1000);
+  doc["opening-time"] = buf;
+
+  doc["num-openings"] = p_Statistic_->times_open;
 
   String page;
   serializeJson(doc, page);

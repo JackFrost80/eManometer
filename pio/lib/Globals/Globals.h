@@ -143,5 +143,9 @@ uint32_t crc32;
 }
 basic_config_t,*p_basic_config_t;
 
+extern statistics_t Statistic_;
+extern p_statistics_t p_Statistic_;
+extern basic_config_t Basic_config_;
+extern p_basic_config_t p_Basic_config_; 
 
 #endif
