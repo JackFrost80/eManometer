@@ -773,7 +773,7 @@ void Webserver::handleWifi()
   page += FPSTR(HTTP_FORM_START2);
   page += _pass;
   page += FPSTR(HTTP_FORM_START3);
-
+#if 0
   char parLength[2];
   // add the extra parameters to the form
   for (int i = 0; i < _paramsCount; i++)
@@ -822,7 +822,7 @@ void Webserver::handleWifi()
   {
     page += "<br/>";
   }
-
+#endif
   if (_sta_static_ip)
   {
 
@@ -874,6 +874,7 @@ void Webserver::handleWifiSave()
   _ssid = server->arg("s").c_str();
   _pass = server->arg("p").c_str();
 
+#if 0
   //parameters
   for (int i = 0; i < _paramsCount; i++)
   {
@@ -889,6 +890,7 @@ void Webserver::handleWifiSave()
     DEBUG_WM(_params[i]->getID());
     DEBUG_WM(value);
   }
+#endif
 
   if (server->arg("ip") != "")
   {
