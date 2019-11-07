@@ -1073,7 +1073,6 @@ void Webserver::handleiSpindel()
   page += F("</dd>");
   page += F("<dd>Date: ");
   page += __DATE__ " " __TIME__;
-  page += F("</dd></dl><br>Firmware update:<br><a href=\"https://github.com/universam1\">github.com/universam1</a><hr>");
   page += F("</dl>");
   page += FPSTR(HTTP_END);
 
