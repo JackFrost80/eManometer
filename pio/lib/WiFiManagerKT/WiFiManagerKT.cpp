@@ -19,6 +19,7 @@
  **************************************************************/
 
 #include "WiFiManagerKT.h"
+#include <ArduinoJson.h>
 
 WiFiManagerParameter::WiFiManagerParameter(const char *custom)
 {
@@ -172,7 +173,7 @@ void WiFiManager::setupConfigPortal()
   server->on("/wifisave", std::bind(&WiFiManager::handleWifiSave, this));
   server->on("/close", std::bind(&WiFiManager::handleServerClose, this));
   server->on("/i", std::bind(&WiFiManager::handleInfo, this));
-  server->on("/iSpindel", std::bind(&WiFiManager::handleiSpindel, this));
+  server->on("/info", std::bind(&WiFiManager::handleiSpindel, this));
   server->on("/state", std::bind(&WiFiManager::handleState, this));
   server->on("/scan", std::bind(&WiFiManager::handleScan, this));
   server->on("/mnt", std::bind(&WiFiManager::handleMnt, this));
@@ -184,16 +185,18 @@ void WiFiManager::setupConfigPortal()
   DEBUG_WM(F("HTTP server started"));
 }
 
-void WiFiManager::setupConfigPortalNormal()
+boolean WiFiManager::startWebserver()
 {
-  
+  server.reset(new ESP8266WebServer(80));
+
   /* Setup web pages: root, wifi config pages, SO captive portal detectors and not found. */
   server->on("/", std::bind(&WiFiManager::handleRoot, this));
   server->on("/wifi", std::bind(&WiFiManager::handleWifi, this));
   server->on("/wifisave", std::bind(&WiFiManager::handleWifiSave, this));
   server->on("/close", std::bind(&WiFiManager::handleServerClose, this));
   server->on("/i", std::bind(&WiFiManager::handleInfo, this));
-  server->on("/iSpindel", std::bind(&WiFiManager::handleiSpindel, this));
+  server->on("/info", std::bind(&WiFiManager::handleiSpindel, this));
+  server->on("/ajax", std::bind(&WiFiManager::handleAjaxRefresh, this));
   server->on("/state", std::bind(&WiFiManager::handleState, this));
   server->on("/scan", std::bind(&WiFiManager::handleScan, this));
   server->on("/mnt", std::bind(&WiFiManager::handleMnt, this));
@@ -203,6 +206,14 @@ void WiFiManager::setupConfigPortalNormal()
   server->onNotFound(std::bind(&WiFiManager::handleNotFound, this));
   server->begin(); // Web server start
   DEBUG_WM(F("HTTP server started"));
+
+  server->begin();
+}
+
+void WiFiManager::process()
+{
+  if (dnsServer) { dnsServer->processNextRequest(); }
+  if (server) { server->handleClient(); }
 }
 
 void WiFiManager::handleUpdating()
@@ -1039,17 +1050,15 @@ void WiFiManager::handleiSpindel()
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
-  page += F("<META HTTP-EQUIV=\"refresh\" CONTENT=\"2\">");
+  page += FPSTR(ajaxRefresh);
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h1>Info</h1><hr>");
   page += F("<h2><table>");
-  page += F("<tr><td>Tilt:</td><td>");
-  //page += Tilt;
   page += F("&deg;</td></tr>");
+  page += F("<tr><td>Pressure:</td><td>");
+  page += F("<div class=\"info-pressure\" />");;
   page += F("<tr><td>Temperature:</td><td>");
-  page += scaleTemperature(Temperatur);
-  page += F("&deg;");
-  page += tempScaleLabel();
+  page += F("<div class=\"info-temperature\" />");
   page += F("</td></tr>");
   page += F("</table></h2>");
   page += F("<hr><dl>");
@@ -1066,6 +1075,20 @@ void WiFiManager::handleiSpindel()
   server->send(200, "text/html", page);
 
   DEBUG_WM(F("Sent iSpindel info page"));
+}
+
+void WiFiManager::handleAjaxRefresh()
+{
+  DynamicJsonDocument doc(1024);
+
+  doc["temperature"] = Temperatur;
+  doc["pressure"] = Pressure;
+  doc["co2"] = carbondioxide;
+
+  String page;
+  serializeJson(doc, page);
+
+  server->send(200, "application/json", page);
 }
 
 /** Handle the info page */

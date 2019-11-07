@@ -78,7 +78,7 @@ tFloatAvgFilter pressure_filtered;
     blink++;  //Toggle LED Pin
     timer1_write(600000);//12us
 }
-WiFiServer server(80);
+
 // Variable to store the HTTP request
 String header;
 
@@ -132,7 +132,7 @@ uint32_t DSreqTime = 0;
 
 float  Temperatur, Pressure, carbondioxide; 
 
-
+WiFiManager* wifiManager;
 
 //iGauge new Stuff 
 
@@ -611,11 +611,11 @@ bool startConfiguration()
 bool startConfigurationNormal()
 {
 
-  WiFiManager wifiManager;
-
-  wifiManager.setConfigPortalTimeout(PORTALTIMEOUT);
-  wifiManager.setSaveConfigCallback(saveConfigCallback);
-  wifiManager.setBreakAfterConfig(true);
+  wifiManager = new WiFiManager();
+  
+  wifiManager->setConfigPortalTimeout(PORTALTIMEOUT);
+  wifiManager->setSaveConfigCallback(saveConfigCallback);
+  wifiManager->setBreakAfterConfig(true);
 
   WiFiManagerParameter api_list(HTTP_API_LIST);
   WiFiManagerParameter custom_api("selAPI", "selAPI", String(my_api).c_str(),
@@ -644,38 +644,38 @@ bool startConfigurationNormal()
                                         String(my_tempscale).c_str(),
                                         5, TYPE_HIDDEN, WFM_NO_LABEL);
 
-  wifiManager.addParameter(&custom_name);
-  wifiManager.addParameter(&custom_sleep);
+  wifiManager->addParameter(&custom_name);
+  wifiManager->addParameter(&custom_sleep);
   
 
   WiFiManagerParameter custom_tempscale_hint("<label for=\"TS\">Unit of temperature</label>");
-  wifiManager.addParameter(&custom_tempscale_hint);
-  wifiManager.addParameter(&tempscale_list);
-  wifiManager.addParameter(&custom_tempscale);
+  wifiManager->addParameter(&custom_tempscale_hint);
+  wifiManager->addParameter(&tempscale_list);
+  wifiManager->addParameter(&custom_tempscale);
   WiFiManagerParameter custom_api_hint("<hr><label for=\"API\">Service Type</label>");
-  wifiManager.addParameter(&custom_api_hint);
+  wifiManager->addParameter(&custom_api_hint);
 
-  wifiManager.addParameter(&api_list);
-  wifiManager.addParameter(&custom_api);
+  wifiManager->addParameter(&api_list);
+  wifiManager->addParameter(&custom_api);
 
-  wifiManager.addParameter(&custom_token);
-  wifiManager.addParameter(&custom_server);
-  wifiManager.addParameter(&custom_port);
-  wifiManager.addParameter(&custom_url);
-  wifiManager.addParameter(&custom_db);
-  wifiManager.addParameter(&custom_username);
-  wifiManager.addParameter(&custom_password);
-  wifiManager.addParameter(&custom_job);
-  wifiManager.addParameter(&custom_instance);
+  wifiManager->addParameter(&custom_token);
+  wifiManager->addParameter(&custom_server);
+  wifiManager->addParameter(&custom_port);
+  wifiManager->addParameter(&custom_url);
+  wifiManager->addParameter(&custom_db);
+  wifiManager->addParameter(&custom_username);
+  wifiManager->addParameter(&custom_password);
+  wifiManager->addParameter(&custom_job);
+  wifiManager->addParameter(&custom_instance);
   
-  wifiManager.setConfSSID(htmlencode(my_ssid));
-  wifiManager.setConfPSK(htmlencode(my_psk));
+  wifiManager->setConfSSID(htmlencode(my_ssid));
+  wifiManager->setConfPSK(htmlencode(my_psk));
 
   CONSOLELN(F("started Portal"));
-  wifiManager.startConfigPortalNormal("iSpindel");
+  wifiManager->startWebserver();
 
   
-
+#if 0
   validateInput(custom_name.getValue(), my_name);
   validateInput(custom_token.getValue(), my_token);
   validateInput(custom_server.getValue(), my_server);
@@ -701,6 +701,8 @@ bool startConfigurationNormal()
 
     return saveConfig();
   }
+#endif
+
   return false;
 }
 
@@ -1142,7 +1144,7 @@ void connectBackupCredentials()
 {
   WiFi.disconnect();
   WiFi.begin(my_ssid.c_str(), my_psk.c_str());
-  //wifiManager.startConfigPortal("iSpindel",NULL,true);
+  //wifiManager->startConfigPortal("iSpindel",NULL,true);
   CONSOLELN(F("Rescue Wifi credentials"));
   delay(100);
 }
@@ -1407,8 +1409,7 @@ void setup()
         // Draw characters of the default font
 
 
-  //startConfigurationNormal();
-  server.begin();
+  startConfigurationNormal();
   
   
   
@@ -1416,6 +1417,9 @@ void setup()
 
 void loop()
 {
+  wifiManager->process();
+
+  #if 0
   WiFiClient client = server.available();   // Listen for incoming clients
 
   if (client) {                             // If a new client connects,
@@ -1590,7 +1594,7 @@ void loop()
     Serial.println("Client disconnected.");
     Serial.println("");
   }
-
+#endif
   
   diff_time = millis() - start_time;
   if(diff_time >= interval_send_data)  // 60 sec send part
