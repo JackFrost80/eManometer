@@ -31,7 +31,12 @@ All rights reserverd by S.Lang <universam@web.de>
 #include "Sender.h"
 #include "display_adafruit_ssd1306.h"
 #include "display_ssd1306_custom.h"
+#include "timer.h"
+
+#include <list>
 // !DEBUG 1
+
+timer_mgr g_timer_mgr;
 
 // iGauge new stuff
 unsigned long previousMillis = 0;        // will store last time LED was updated
@@ -104,6 +109,8 @@ uint32_t start_time = 0;
 #define TEMP_CELSIUS 0
 #define TEMP_FAHRENHEIT 1
 #define TEMP_KELVIN 2
+
+Webserver* webserver;
 
 int detectTempSensor(const uint8_t pins[]);
 
@@ -608,6 +615,7 @@ bool startConfiguration()
   return false;
 }
 
+#if 0
 bool startConfigurationNormal()
 {
 
@@ -705,6 +713,7 @@ bool startConfigurationNormal()
 
   return false;
 }
+#endif
 
 
 void formatSpiffs()
@@ -1297,6 +1306,7 @@ void setup()
   CONSOLELN(F("\nFW " FIRMWAREVERSION));
   CONSOLELN(ESP.getSdkVersion());
 
+  webserver = new Webserver();
   
 
   bool validConf = readConfig();
@@ -1305,46 +1315,15 @@ void setup()
   initDS18B20();
   
   // decide whether we want configuration mode or normal mode
-  if (shouldStartConfig(validConf))
-  {
-    uint32_t tmp;
-    ESP.rtcUserMemoryRead(WIFIENADDR, &tmp, sizeof(tmp));
-
-    // DIRTY hack to keep track of WAKE_RF_DEFAULT --> find a way to read WAKE_RF_*
-    if (tmp != RTCVALIDFLAG)
-    {
-      drd.setRecentlyResetFlag();
-      tmp = RTCVALIDFLAG;
-      ESP.rtcUserMemoryWrite(WIFIENADDR, &tmp, sizeof(tmp));
-      CONSOLELN(F("reboot RFCAL"));
-      ESP.deepSleep(100000, WAKE_RFCAL);
-      delay(500);
-    }
-    else
-    {
-      tmp = 0;
-      ESP.rtcUserMemoryWrite(WIFIENADDR, &tmp, sizeof(tmp));
-    }
-
-    //flasher.attach(1, flash);
-
-    // rescue if wifi credentials lost because of power loss
-    if (!startConfiguration())
-    {
-      // test if ssid exists
-      if (WiFi.SSID() == "" &&
-          my_ssid != "" && my_psk != "")
-      {
-        connectBackupCredentials();
-      }
-    }
-    uint32_t left2sleep = 0;
-    ESP.rtcUserMemoryWrite(RTCSLEEPADDR, &left2sleep, sizeof(left2sleep));
-
-    //flasher.detach();
+  if (shouldStartConfig(validConf)) {
+    webserver->startWifiManager();
   }
+  else {
+    WiFi.mode(WIFI_STA);
+  }
+
   // to make sure we wake up with STA but AP
-  WiFi.mode(WIFI_STA);
+  //WiFi.mode(WIFI_STA);
     // we try to survive
   WiFi.setOutputPower(20.5);
 
@@ -1402,22 +1381,27 @@ void setup()
     CONSOLELN(F("failed to connect"));
   }
   start_time = millis();
-  // survive - 60min sleep time
-  //if (isSafeMode(Volt))
-  //  my_sleeptime = EMERGENCYSLEEP;
-  //goodNight(my_sleeptime);
-        // Draw characters of the default font
 
+  webserver->startWebserver();
 
-  startConfigurationNormal();
-  
-  
-  
+  if (WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA) {
+    g_timer_mgr.create_timer(250, false, [](){
+      static int blink = 0;
+      digitalWrite(LED_BUILTIN, blink);
+      blink = !blink;
+    });
+  }
 }
 
 void loop()
 {
-  wifiManager->process();
+  webserver->process();
+  g_timer_mgr.check_timers();
+
+  // Don't do anything else than web handling in Config Mode
+  if (WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA) {
+    return;
+  }
 
   #if 0
   WiFiClient client = server.available();   // Listen for incoming clients

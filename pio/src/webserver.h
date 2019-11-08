@@ -174,6 +174,7 @@ public:
   boolean autoConnect(char const *apName, char const *apPassword = NULL); //Deprecated. Do not use.
 
   boolean startWebserver();
+  void startWifiManager();
   void process();
 
   //if you want to start the config portal

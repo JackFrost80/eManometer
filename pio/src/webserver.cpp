@@ -210,6 +210,32 @@ boolean Webserver::startWebserver()
   server->begin();
 }
 
+void Webserver::startWifiManager()
+{
+  int connRes = WiFi.waitForConnectResult();
+  
+  if (connRes == WL_CONNECTED)
+  {
+    WiFi.mode(WIFI_AP_STA); //Dual mode works fine if it is connected to WiFi
+    DEBUG_WM("SET AP STA");
+  }
+  else
+  {
+    WiFi.mode(WIFI_AP); // Dual mode becomes flaky if not connected to a WiFi network.
+    // When ESP8266 station is trying to find a target AP, it will scan on every channel,
+    // that means ESP8266 station is changing its channel to scan. This makes the channel of ESP8266 softAP keep changing too..
+    // So the connection may break. From http://bbs.espressif.com/viewtopic.php?t=671#p2531
+    DEBUG_WM("SET AP");
+  }
+
+  dnsServer.reset(new DNSServer());
+  WiFi.softAP(_apName);
+
+  delay(500);
+  dnsServer->setErrorReplyCode(DNSReplyCode::NoError);
+  dnsServer->start(DNS_PORT, "*", WiFi.softAPIP());
+}
+
 void Webserver::process()
 {
   if (dnsServer) { dnsServer->processNextRequest(); }
