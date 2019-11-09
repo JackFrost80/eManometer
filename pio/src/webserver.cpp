@@ -574,11 +574,6 @@ void Webserver::setMinimumSignalQuality(int quality)
   _minimumQuality = quality;
 }
 
-void Webserver::setBreakAfterConfig(boolean shouldBreak)
-{
-  _shouldBreakAfterConfig = shouldBreak;
-}
-
 void Webserver::reportStatus(String &page)
 {
   if (WiFi.SSID() != "")
@@ -955,13 +950,6 @@ void Webserver::handleWifiSave()
 
   connect = true; //signal ready to connect/reset
 }
-
-/*
-struct argSaveFunc {
-  String arg;
-  std::function<void(const String& arg)> func;
-};
-*/
 
 void Webserver::handleConfigSave()
 {
@@ -1376,18 +1364,6 @@ boolean Webserver::captivePortal()
     return true;
   }
   return false;
-}
-
-//start up config portal callback
-void Webserver::setAPCallback(void (*func)(Webserver *myWiFiManager))
-{
-  _apcallback = func;
-}
-
-//start up save config callback
-void Webserver::setSaveConfigCallback(void (*func)(void))
-{
-  _savecallback = func;
 }
 
 //sets a custom element to add to head, like a new style tag

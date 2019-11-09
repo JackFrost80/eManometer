@@ -180,12 +180,7 @@ public:
   void setAPStaticIPConfig(IPAddress ip, IPAddress gw, IPAddress sn);
   //sets config for a static IP
   void setSTAStaticIPConfig(IPAddress ip, IPAddress gw, IPAddress sn);
-  //called when AP mode and config portal is started
-  void setAPCallback(void (*func)(Webserver *));
-  //called when settings have been changed and connection was successful
-  void setSaveConfigCallback(void (*func)(void));
-  //if this is set, it will exit after config, even if connection is unsucessful.
-  void setBreakAfterConfig(boolean shouldBreak);
+
   //if this is set, try WPS setup when starting (this will delay config portal for up to 2 mins)
   //TODO
   //if this is set, customise style
@@ -283,9 +278,6 @@ private:
   boolean connect;
   boolean stopConfigPortal = false;
   boolean _debug = true;
-
-  void (*_apcallback)(Webserver *) = NULL;
-  void (*_savecallback)(void) = NULL;
 
   template <typename Generic>
   void DEBUG_WM(Generic text);
