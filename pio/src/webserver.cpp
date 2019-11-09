@@ -58,10 +58,16 @@ static void addList(String& page, String id, String label, int value, std::vecto
     pitem.replace("{i}", id);
     pitem.replace("{n}", id);
     pitem.replace("{p}", label);
-    pitem.replace("{v}", String(value));
 
-    for (auto& item: items) {
-      pitem += "<option value=" + String(item.val) + ">" + item.name + "</option>";
+    for (int i = 0; i < items.size(); ++i) {
+      auto& item = items[i];
+
+      pitem += "<option value=" + String(item.val);
+      
+      if (i == value)
+        pitem += " selected";
+      
+      pitem += ">" + item.name + "</option>";
     }
 
     pitem += "</select>";
@@ -81,7 +87,11 @@ static void addList(String& page, String id, String label, int value, const std:
     pitem.replace("{v}", String(value));
 
     for (int i = 0; i < items.size(); ++i) {
-      pitem += "<option value=" + String(i) + ">" + items[i] + "</option>";
+      pitem += "<option value=" + String(i);
+      if (i == value)
+        pitem += " selected";
+        
+      pitem += ">" + items[i] + "</option>";
     }
 
     pitem += "</select>";
