@@ -42,6 +42,10 @@ const char ajaxRefresh[] PROGMEM =
 #include "web/ajaxrefresh.js"
 ;
 
+const char remoteApiJs[] PROGMEM =
+#include "web/remoteapi.js"
+;
+
 const char HTTP_SCRIPT[] PROGMEM = "";
 #if 0
 const char HTTP_SCRIPT[] PROGMEM = R"V0G0N(
@@ -126,7 +130,7 @@ const char HTTP_FORM_START1[] PROGMEM = "<form method=\"get\" action=\"wifisave\
 const char HTTP_FORM_START2[] PROGMEM = "\"><label>Password</label><input id=\"p\" name=\"p\" length=64 placeholder=\"password\" value=\"";
 const char HTTP_FORM_START3[] PROGMEM = "\">";
 
-const char HTTP_FORM_LABEL[] PROGMEM = "<label for=\"{i}\">{p}</label>";
+const char HTTP_FORM_LABEL[] PROGMEM = "<label name=\"label-{i}\" for=\"{i}\">{p}</label>";
 const char HTTP_FORM_PARAM[] PROGMEM = "<input id=\"{i}\" name=\"{n}\" length={l} placeholder=\"{p}\" value=\"{v}\" {c}>";
 const char HTTP_FORM_LIST[] PROGMEM = "<select id=\"{i}\" name=\"{n}\" placeholder=\"{p}\" value=\"{v}\">";
 const char HTTP_FORM_END[] PROGMEM = "<button class=\"btn\" type=\"submit\">save</button></form>";
@@ -278,6 +282,7 @@ private:
   void handleRoot();
   void handleWifi();
   void handleConfig();
+  void handleConfigSave();
   void handleHWConfig();
   void handleAPIConfig();
   void handleWifiSave();

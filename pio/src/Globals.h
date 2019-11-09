@@ -63,13 +63,12 @@
 enum RemoteAPI {
     API_Off = 0,
     API_Ubidots = 1,
-    API_Thingspeak = 2,
-    API_CraftBeerPi = 3,
-    API_HTTP = 4,
-    API_TCP = 5,
-    API_InfluxDB = 6,
-    API_Prometheus = 7,
-    API_MQTT = 8
+    API_CraftBeerPi = 2,
+    API_HTTP = 3,
+    API_TCP = 4,
+    API_InfluxDB = 5,
+    API_Prometheus = 6,
+    API_MQTT = 7
 };
 
 extern std::vector<String> RemoteAPILabels;
@@ -156,13 +155,13 @@ extern const std::vector<String> TempLabels;
 
 struct FlashConfig {
   char my_token[TKIDSIZE * 2];
-  char my_name[TKIDSIZE] = "iGauge000";
+  char my_name[TKIDSIZE] = "eManometer000";
   char my_server[TKIDSIZE];
   char my_url[TKIDSIZE * 2];
-  char my_db[TKIDSIZE] = "iGauge";
+  char my_db[TKIDSIZE] = "eManometer";
   char my_username[TKIDSIZE];
   char my_password[TKIDSIZE];
-  char my_job[TKIDSIZE] = "iGauge";
+  char my_job[TKIDSIZE] = "eManometer";
   char my_instance[TKIDSIZE] = "000";
 
   String my_ssid;

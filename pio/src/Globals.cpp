@@ -15,7 +15,6 @@ const std::vector<String> TempLabels = {
 std::vector<String> RemoteAPILabels = {
     "Off",
     "Ubidots",
-    "ThingSpeak",
     "CraftBeerPi",
     "HTTP",
     "TCP",

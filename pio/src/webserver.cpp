@@ -128,6 +128,7 @@ boolean Webserver::startWebserver()
   server->on("/hw", std::bind(&Webserver::handleHWConfig, this));
   server->on("/api", std::bind(&Webserver::handleAPIConfig, this));
   server->on("/config", std::bind(&Webserver::handleConfig, this));
+  server->on("/cs", std::bind(&Webserver::handleConfigSave, this));
   server->on("/wifisave", std::bind(&Webserver::handleWifiSave, this));
   server->on("/close", std::bind(&Webserver::handleServerClose, this));
   server->on("/i", std::bind(&Webserver::handleInfo, this));
@@ -629,15 +630,25 @@ void Webserver::handleAPIConfig()
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
+  page += FPSTR(remoteApiJs);
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h2>Remote Sender Config</h2>");
 
   // page += FPSTR(HTTP_FORM_START);
   page += F("<form method=\"get\" action=\"cs\">");
 
-  addParam(page, "name", "Name", g_flashConfig.my_name, 128);
+  addParam(page, "name", "Name", g_flashConfig.my_name, sizeof(g_flashConfig.my_name) -1);
   addParam(page, "interval", "Update Interval", String(g_flashConfig.my_sleeptime), 12);
   addList(page, "api", "API", g_flashConfig.my_api, RemoteAPILabels);
+  addParam(page, "token", "Token", g_flashConfig.my_token, sizeof(g_flashConfig.my_token)- 1);
+  addParam(page, "address", "Server Address", g_flashConfig.my_server, sizeof(g_flashConfig.my_server) -1);
+  addParam(page, "port", "Port Number", String(g_flashConfig.my_port), 128);
+  addParam(page, "url", "URL", g_flashConfig.my_url, sizeof(g_flashConfig.my_url)-1);
+  addParam(page, "db", "Influx DB", g_flashConfig.my_db, sizeof(g_flashConfig.my_db) -1);
+  addParam(page, "username", "Username", g_flashConfig.my_username, sizeof(g_flashConfig.my_username) -1);
+  addParam(page, "password", "Password", g_flashConfig.my_password, sizeof(g_flashConfig.my_password -1));
+  addParam(page, "job", "Prometheus Job", g_flashConfig.my_job, sizeof(g_flashConfig.my_job) -1);
+  addParam(page, "instance", "Prometheus Instance", g_flashConfig.my_instance, sizeof(g_flashConfig.my_instance)-1);
 
   page += FPSTR(HTTP_FORM_END);
   page += FPSTR(HTTP_END);
@@ -749,6 +760,12 @@ void Webserver::handleWifiSave()
 
   connect = true; //signal ready to connect/reset
 }
+
+void Webserver::handleConfigSave()
+{
+
+}
+
 /** Handle shut down the server page */
 void Webserver::handleServerClose()
 {
