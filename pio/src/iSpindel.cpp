@@ -396,12 +396,6 @@ bool readConfig()
             g_flashConfig.my_psk = (const char *)doc["PSK"];
           
 
-          //my_aX = UNINIT;
-          //my_aY = UNINIT;
-          //my_aZ = UNINIT;
-
-          
-
           CONSOLELN(F("parsed config:"));
 #ifdef DEBUG
           serializeJson(doc, Serial);

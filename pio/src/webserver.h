@@ -170,9 +170,6 @@ public:
   Webserver();
   ~Webserver();
 
-  boolean autoConnect();                                                  //Deprecated. Do not use.
-  boolean autoConnect(char const *apName, char const *apPassword = NULL); //Deprecated. Do not use.
-
   boolean startWebserver();
   void startWifiManager();
   void process();
