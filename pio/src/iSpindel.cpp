@@ -306,26 +306,30 @@ void blink_red(uint32_t Frequency)
 
 float scaleTemperature(float t)
 {
-  if (g_flashConfig.my_tempscale == TEMP_CELSIUS)
-    return t;
-  else if (g_flashConfig.my_tempscale == TEMP_FAHRENHEIT)
-    return (1.8f * t + 32);
-  else if (g_flashConfig.my_tempscale == TEMP_KELVIN)
-    return t + 273.15f;
-  else
-    return t; // Invalid value for my_tempscale => default to celsius
+  switch (g_flashConfig.my_tempscale) {
+    case TEMP_FAHRENHEIT:
+      return (1.8f * t + 32); 
+    case TEMP_KELVIN:
+      return t + 273.15f;
+    case TEMP_CELSIUS:
+      // fall through
+    default:
+      return t;
+  }
 }
 
 String tempScaleLabel(void)
 {
-  if (g_flashConfig.my_tempscale == TEMP_CELSIUS)
-    return "C";
-  else if (g_flashConfig.my_tempscale == TEMP_FAHRENHEIT)
-    return "F";
-  else if (g_flashConfig.my_tempscale == TEMP_KELVIN)
-    return "K";
-  else
-    return "C"; // Invalid value for my_tempscale => default to celsius
+  switch (g_flashConfig.my_tempscale) {
+    case TEMP_FAHRENHEIT:
+      return "F";
+    case TEMP_KELVIN:
+      return "K";
+    case TEMP_CELSIUS:
+      // fall through
+    default:
+      return "C";
+  }
 }
 
 // callback notifying us of the need to save config
