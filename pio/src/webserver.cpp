@@ -126,10 +126,10 @@ paramMap parameters = {
     "name",
     {
       [] (String& page) {
-        addParam(page, "name", "Name", String(g_flashConfig.my_name), 128);
+        addParam(page, "name", "Name", String(g_flashConfig.name), 128);
       },
       [] (const String& arg) {
-        validateInput(arg, g_flashConfig.my_name);
+        validateInput(arg, g_flashConfig.name);
       }
     }
   },
@@ -137,10 +137,10 @@ paramMap parameters = {
     "interval",
     {
       [] (String& page) {
-        addParam(page, "interval", "Update Interval", String(g_flashConfig.my_sleeptime), 128);
+        addParam(page, "interval", "Update Interval", String(g_flashConfig.sleeptime), 128);
       },
       [] (const String& arg) {
-        g_flashConfig.my_sleeptime = arg.toInt();
+        g_flashConfig.sleeptime = arg.toInt();
       }
     }
   },
@@ -148,10 +148,10 @@ paramMap parameters = {
     "api",
     {
       [] (String& page) {
-        addList(page, "api", "API", g_flashConfig.my_api, RemoteAPILabels);
+        addList(page, "api", "API", g_flashConfig.api, RemoteAPILabels);
       },
       [] (const String& arg) {
-        g_flashConfig.my_api = arg.toInt();
+        g_flashConfig.api = arg.toInt();
       }
     }
   },
@@ -159,10 +159,10 @@ paramMap parameters = {
     "token",
     {
       [] (String& page) {
-        addParam(page, "token", "Token", g_flashConfig.my_token, 128);
+        addParam(page, "token", "Token", g_flashConfig.token, 128);
       },
       [] (const String& arg) {
-        validateInput(arg, g_flashConfig.my_token);
+        validateInput(arg, g_flashConfig.token);
       }
     }
   },
@@ -170,10 +170,10 @@ paramMap parameters = {
     "address",
     {
       [] (String& page) {
-        addParam(page, "address", "Server Address", g_flashConfig.my_server, 128);
+        addParam(page, "address", "Server Address", g_flashConfig.server, 128);
       },
       [] (const String& arg) {
-        validateInput(arg, g_flashConfig.my_server);
+        validateInput(arg, g_flashConfig.server);
       }
     }
   },
@@ -181,10 +181,10 @@ paramMap parameters = {
     "port",
     {
       [] (String& page) {
-        addParam(page, "port", "Port Number", String(g_flashConfig.my_port), 128);
+        addParam(page, "port", "Port Number", String(g_flashConfig.port), 128);
       },
       [] (const String& arg) {
-        g_flashConfig.my_port = arg.toInt();
+        g_flashConfig.port = arg.toInt();
       }
     }
   },
@@ -192,10 +192,10 @@ paramMap parameters = {
     "url",
     {
       [] (String& page) {
-        addParam(page, "url", "URL", g_flashConfig.my_url, 128);
+        addParam(page, "url", "URL", g_flashConfig.url, 128);
       },
       [] (const String& arg) {
-        validateInput(arg, g_flashConfig.my_url);
+        validateInput(arg, g_flashConfig.url);
       }
     }
   },
@@ -203,10 +203,10 @@ paramMap parameters = {
     "db",
     {
       [] (String& page) {
-        addParam(page, "db", "Influx DB", g_flashConfig.my_db, 128);
+        addParam(page, "db", "Influx DB", g_flashConfig.db, 128);
       },
       [] (const String& arg) {
-        validateInput(arg, g_flashConfig.my_db);
+        validateInput(arg, g_flashConfig.db);
       }
     }
   },
@@ -214,10 +214,10 @@ paramMap parameters = {
     "username",
     {
       [] (String& page) {
-        addParam(page, "username", "Username", g_flashConfig.my_username, 128);
+        addParam(page, "username", "Username", g_flashConfig.username, 128);
       },
       [] (const String& arg) {
-        validateInput(arg, g_flashConfig.my_username);
+        validateInput(arg, g_flashConfig.username);
       }
     }
   },
@@ -225,10 +225,10 @@ paramMap parameters = {
     "password",
     {
       [] (String& page) {
-        addParam(page, "password", "Password", g_flashConfig.my_password, 128);
+        addParam(page, "password", "Password", g_flashConfig.password, 128);
       },
       [] (const String& arg) {
-        validateInput(arg, g_flashConfig.my_password);
+        validateInput(arg, g_flashConfig.password);
       }
     }
   },
@@ -236,10 +236,10 @@ paramMap parameters = {
     "job",
     {
       [] (String& page) {
-        addParam(page, "job", "Prometheus Job", g_flashConfig.my_job, 128);
+        addParam(page, "job", "Prometheus Job", g_flashConfig.job, 128);
       },
       [] (const String& arg) {
-        validateInput(arg, g_flashConfig.my_job);
+        validateInput(arg, g_flashConfig.job);
       }
     }
   },
@@ -247,10 +247,10 @@ paramMap parameters = {
     "instance",
     {
       [] (String& page) {
-        addParam(page, "instance", "Prometheus Instance", g_flashConfig.my_instance, 128);
+        addParam(page, "instance", "Prometheus Instance", g_flashConfig.instance, 128);
       },
       [] (const String& arg) {
-        validateInput(arg, g_flashConfig.my_instance);
+        validateInput(arg, g_flashConfig.instance);
       }
     }
   },
@@ -258,10 +258,10 @@ paramMap parameters = {
     "tempscale",
     {
       [] (String& page) {
-        addList(page, "tempscale", "Temperature Unit", g_flashConfig.my_tempscale, TempLabels);
+        addList(page, "tempscale", "Temperature Unit", g_flashConfig.tempscale, TempLabels);
       },
       [] (const String& arg) {
-        g_flashConfig.my_tempscale = (TempUnits) arg.toInt();
+        g_flashConfig.tempscale = (TempUnits) arg.toInt();
       }
     }
   },

@@ -118,22 +118,22 @@ extern const std::vector<String> TempLabelsShort;
 extern const std::vector<String> TempLabels;
 
 struct FlashConfig {
-  String my_token;
-  String my_name = "eManometer000";
-  String my_server;
-  String my_url;
-  String my_db = "eManometer";
-  String my_username;
-  String my_password;
-  String my_job = "eManometer";
-  String my_instance = "000";
+  String token;
+  String name = "eManometer000";
+  String server;
+  String url;
+  String db = "eManometer";
+  String username;
+  String password;
+  String job = "eManometer";
+  String instance = "000";
 
-  String my_ssid;
-  String my_psk;
-  uint8_t my_api;
-  uint32_t my_sleeptime = 15 * 60;
-  uint16_t my_port = 80;
-  TempUnits my_tempscale = TempCelsius;
+  String ssid;
+  String psk;
+  uint8_t api;
+  uint32_t sleeptime = 15 * 60;
+  uint16_t port = 80;
+  TempUnits tempscale = TempCelsius;
 };
 
 extern FlashConfig g_flashConfig;

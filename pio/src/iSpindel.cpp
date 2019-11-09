@@ -319,7 +319,7 @@ void blink_red(uint32_t Frequency)
 
 float scaleTemperature(float t)
 {
-  switch (g_flashConfig.my_tempscale) {
+  switch (g_flashConfig.tempscale) {
     case TempFahrenheit:
       return (1.8f * t + 32); 
     case TempKelvin:
@@ -333,7 +333,7 @@ float scaleTemperature(float t)
 
 String tempScaleLabel(void)
 {
-  return TempLabelsShort[g_flashConfig.my_tempscale];
+  return TempLabelsShort[g_flashConfig.tempscale];
 }
 
 bool readConfig()
@@ -361,35 +361,35 @@ bool readConfig()
         if (!error)
         {
           if (doc.containsKey("Name"))
-            g_flashConfig.my_name = doc["Name"].as<String>();
+            g_flashConfig.name = doc["Name"].as<String>();
           if (doc.containsKey("Token"))
-            g_flashConfig.my_token = doc["Token"].as<String>();
+            g_flashConfig.token = doc["Token"].as<String>();
           if (doc.containsKey("Server"))
-            g_flashConfig.my_server = doc["Server"].as<String>();
+            g_flashConfig.server = doc["Server"].as<String>();
           if (doc.containsKey("Sleep"))
-            g_flashConfig.my_sleeptime = doc["Sleep"];
+            g_flashConfig.sleeptime = doc["Sleep"];
           if (doc.containsKey("API"))
-            g_flashConfig.my_api = doc["API"];
+            g_flashConfig.api = doc["API"];
           if (doc.containsKey("Port"))
-            g_flashConfig.my_port = doc["Port"];
+            g_flashConfig.port = doc["Port"];
           if (doc.containsKey("URL"))
-            g_flashConfig.my_url = doc["URL"].as<String>();
+            g_flashConfig.url = doc["URL"].as<String>();
           if (doc.containsKey("DB"))
-            g_flashConfig.my_db = doc["DB"].as<String>();
+            g_flashConfig.db = doc["DB"].as<String>();
           if (doc.containsKey("Username"))
-            g_flashConfig.my_username = doc["Username"].as<String>();
+            g_flashConfig.username = doc["Username"].as<String>();
           if (doc.containsKey("Password"))
-            g_flashConfig.my_password = doc["Password"].as<String>();
+            g_flashConfig.password = doc["Password"].as<String>();
           if (doc.containsKey("Job"))
-            g_flashConfig.my_job = doc["Job"].as<String>();
+            g_flashConfig.job = doc["Job"].as<String>();
           if (doc.containsKey("Instance"))
-            g_flashConfig.my_instance = doc["Instance"].as<String>();
+            g_flashConfig.instance = doc["Instance"].as<String>();
           if (doc.containsKey("TS"))
-            g_flashConfig.my_tempscale = (TempUnits) doc["TS"].as<uint8_t>();
+            g_flashConfig.tempscale = (TempUnits) doc["TS"].as<uint8_t>();
           if (doc.containsKey("SSID"))
-            g_flashConfig.my_ssid = doc["SSID"].as<String>();
+            g_flashConfig.ssid = doc["SSID"].as<String>();
           if (doc.containsKey("PSK"))
-            g_flashConfig.my_psk = doc["PSK"].as<String>();
+            g_flashConfig.psk = doc["PSK"].as<String>();
           
 
           CONSOLELN(F("parsed config:"));
@@ -522,21 +522,21 @@ bool saveConfig()
 
   DynamicJsonDocument doc(1024);
 
-  doc["Name"] = g_flashConfig.my_name;
-  doc["Token"] = g_flashConfig.my_token;
-  doc["Sleep"] = g_flashConfig.my_sleeptime;
+  doc["Name"] = g_flashConfig.name;
+  doc["Token"] = g_flashConfig.token;
+  doc["Sleep"] = g_flashConfig.sleeptime;
   // first reboot is for test
-  g_flashConfig.my_sleeptime = 1;
-  doc["Server"] = g_flashConfig.my_server;
-  doc["API"] = g_flashConfig.my_api;
-  doc["Port"] = g_flashConfig.my_port;
-  doc["URL"] = g_flashConfig.my_url;
-  doc["DB"] = g_flashConfig.my_db;
-  doc["Username"] = g_flashConfig.my_username;
-  doc["Password"] = g_flashConfig.my_password;
-  doc["Job"] = g_flashConfig.my_job;
-  doc["Instance"] = g_flashConfig.my_instance;
-  doc["TS"] = (uint8_t) g_flashConfig.my_tempscale;
+  g_flashConfig.sleeptime = 1;
+  doc["Server"] = g_flashConfig.server;
+  doc["API"] = g_flashConfig.api;
+  doc["Port"] = g_flashConfig.port;
+  doc["URL"] = g_flashConfig.url;
+  doc["DB"] = g_flashConfig.db;
+  doc["Username"] = g_flashConfig.username;
+  doc["Password"] = g_flashConfig.password;
+  doc["Job"] = g_flashConfig.job;
+  doc["Instance"] = g_flashConfig.instance;
+  doc["TS"] = (uint8_t) g_flashConfig.tempscale;
 
   // Store current Wifi credentials
   doc["SSID"] = WiFi.SSID();
@@ -575,11 +575,11 @@ bool processResponse(String response)
     if (!error && doc.containsKey("interval"))
     {
       uint32_t interval = doc["interval"];
-      if (interval != g_flashConfig.my_sleeptime &&
+      if (interval != g_flashConfig.sleeptime &&
           interval < 24 * 60 * 60 &&
           interval > 10)
       {
-        g_flashConfig.my_sleeptime = interval;
+        g_flashConfig.sleeptime = interval;
         CONSOLE(F("Received new Interval config: "));
         CONSOLELN(interval);
         return saveConfig();
@@ -594,12 +594,12 @@ bool forwardUbidots()
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
-    sender.add("interval", g_flashConfig.my_sleeptime);
+    sender.add("interval", g_flashConfig.sleeptime);
     sender.add("RSSI", WiFi.RSSI());
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
     CONSOLELN(F("\ncalling Ubidots"));
-    return sender.sendUbidots(g_flashConfig.my_token, g_flashConfig.my_name);
+    return sender.sendUbidots(g_flashConfig.token, g_flashConfig.name);
 }
 
 bool forwardMQTT()
@@ -615,7 +615,7 @@ bool forwardMQTT()
     sender.add("Open_time",p_Statistic_->opening_time/1000);
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling MQTT"));
-    return sender.sendMQTT(g_flashConfig.my_server, g_flashConfig.my_port, g_flashConfig.my_username, g_flashConfig.my_password, g_flashConfig.my_name);
+    return sender.sendMQTT(g_flashConfig.server, g_flashConfig.port, g_flashConfig.username, g_flashConfig.password, g_flashConfig.name);
 }
 
 bool forwardInfluxDB()
@@ -631,8 +631,8 @@ bool forwardInfluxDB()
     sender.add("Open_time",p_Statistic_->opening_time/1000);
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling InfluxDB"));
-    CONSOLELN(String(F("Sending to db: ")) + g_flashConfig.my_db + String(F(" w/ credentials: ")) + g_flashConfig.my_username + String(F(":")) + g_flashConfig.my_password);
-    return sender.sendInfluxDB(g_flashConfig.my_server, g_flashConfig.my_port, g_flashConfig.my_db, g_flashConfig.my_name, g_flashConfig.my_username, g_flashConfig.my_password);
+    CONSOLELN(String(F("Sending to db: ")) + g_flashConfig.db + String(F(" w/ credentials: ")) + g_flashConfig.username + String(F(":")) + g_flashConfig.password);
+    return sender.sendInfluxDB(g_flashConfig.server, g_flashConfig.port, g_flashConfig.db, g_flashConfig.name, g_flashConfig.username, g_flashConfig.password);
 }
 
 bool forwardPrometheus()
@@ -647,16 +647,16 @@ bool forwardPrometheus()
     sender.add("Open_time",p_Statistic_->opening_time/1000);
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling Prometheus Pushgateway"));
-    return sender.sendPrometheus(g_flashConfig.my_server, g_flashConfig.my_port, g_flashConfig.my_job, g_flashConfig.my_instance);
+    return sender.sendPrometheus(g_flashConfig.server, g_flashConfig.port, g_flashConfig.job, g_flashConfig.instance);
 }
 
 bool forwardGeneric()
 {
     SenderClass sender;
-    sender.add("name", g_flashConfig.my_name);
+    sender.add("name", g_flashConfig.name);
     sender.add("ID", ESP.getChipId());
-    if (g_flashConfig.my_token[0] != 0)
-      sender.add("token", g_flashConfig.my_token);
+    if (g_flashConfig.token[0] != 0)
+      sender.add("token", g_flashConfig.token);
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("temp_units", tempScaleLabel());
     sender.add("type","eManometer");
@@ -667,13 +667,13 @@ bool forwardGeneric()
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
 
-    switch(g_flashConfig.my_api) {
+    switch(g_flashConfig.api) {
       case API_HTTP:
-        return sender.sendGenericPost(g_flashConfig.my_server, g_flashConfig.my_url, g_flashConfig.my_port);
+        return sender.sendGenericPost(g_flashConfig.server, g_flashConfig.url, g_flashConfig.port);
       case API_CraftBeerPi:
-        return sender.sendGenericPost(g_flashConfig.my_server, CBP_ENDPOINT, 5000);
+        return sender.sendGenericPost(g_flashConfig.server, CBP_ENDPOINT, 5000);
       case API_TCP: {
-        String response = sender.sendTCP(g_flashConfig.my_server, g_flashConfig.my_port);
+        String response = sender.sendTCP(g_flashConfig.server, g_flashConfig.port);
         return processResponse(response);
       }
     }
@@ -681,7 +681,7 @@ bool forwardGeneric()
 
 bool uploadData()
 {
-  switch(g_flashConfig.my_api) {
+  switch(g_flashConfig.api) {
     case API_Ubidots:
       return forwardUbidots();
     case API_MQTT:
@@ -896,7 +896,7 @@ int detectTempSensor()
 void connectBackupCredentials()
 {
   WiFi.disconnect();
-  WiFi.begin(g_flashConfig.my_ssid.c_str(), g_flashConfig.my_psk.c_str());
+  WiFi.begin(g_flashConfig.ssid.c_str(), g_flashConfig.psk.c_str());
   //wifiManager->startConfigPortal("iSpindel",NULL,true);
   CONSOLELN(F("Rescue Wifi credentials"));
   delay(100);
@@ -1129,8 +1129,8 @@ void setup()
   }
   start_time = millis();
 
-  webserver->setConfSSID(htmlencode(g_flashConfig.my_ssid));
-  webserver->setConfPSK(htmlencode(g_flashConfig.my_psk));
+  webserver->setConfSSID(htmlencode(g_flashConfig.ssid));
+  webserver->setConfPSK(htmlencode(g_flashConfig.psk));
 
   webserver->startWebserver();
 
