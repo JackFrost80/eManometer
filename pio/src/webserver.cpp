@@ -125,6 +125,7 @@ boolean Webserver::startWebserver()
   /* Setup web pages: root, wifi config pages, SO captive portal detectors and not found. */
   server->on("/", std::bind(&Webserver::handleRoot, this));
   server->on("/wifi", std::bind(&Webserver::handleWifi, this));
+  server->on("/hw", std::bind(&Webserver::handleHWConfig, this));
   server->on("/api", std::bind(&Webserver::handleAPIConfig, this));
   server->on("/config", std::bind(&Webserver::handleConfig, this));
   server->on("/wifisave", std::bind(&Webserver::handleWifiSave, this));
@@ -592,6 +593,34 @@ static void addList(String& page, String id, String label, int value, const std:
     page += pitem;
 }
 
+void Webserver::handleHWConfig()
+{
+  header();
+  String page = FPSTR(HTTP_HEAD);
+  page.replace("{v}", "Hardware Config");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+  page += F("<h2>Hardware Config</h2>");
+
+  // page += FPSTR(HTTP_FORM_START);
+  page += F("<form method=\"get\" action=\"cs\">");
+
+  addList(page, "display", "Display Type", p_Basic_config_->type_of_display, {
+    {0, "SH1106"},
+    {1, "SSD1306"}
+  });
+
+  page += FPSTR(HTTP_FORM_END);
+  page += FPSTR(HTTP_END);
+
+  server->send(200, "text/html", page);
+
+  DEBUG_WM(F("Sent config page"));
+}
+
+
 void Webserver::handleAPIConfig()
 {
   header();
@@ -608,7 +637,6 @@ void Webserver::handleAPIConfig()
 
   addParam(page, "name", "Name", g_flashConfig.my_name, 128);
   addParam(page, "interval", "Update Interval", String(g_flashConfig.my_sleeptime), 12);
-  addList(page, "tempscale", "Temperature Unit", g_flashConfig.my_tempscale, TempLabels);
   addList(page, "api", "API", g_flashConfig.my_api, RemoteAPILabels);
 
   page += FPSTR(HTTP_FORM_END);
@@ -634,6 +662,7 @@ void Webserver::handleConfig()
   // page += FPSTR(HTTP_FORM_START);
   page += F("<form method=\"get\" action=\"cs\">");
 
+  addList(page, "tempscale", "Temperature Unit", g_flashConfig.my_tempscale, TempLabels);
   addParam(page, "setpoint_carb", "Target Carbonation [g/l]", String(p_Controller_->setpoint_carbondioxide), 12);
   addParam(page, "setpoint", "Target Pressure [bar]", String(p_Controller_->Setpoint), 12);
   addParam(page, "controller_p_value", "Controller P Value", String(p_Controller_->Kp), 12);
