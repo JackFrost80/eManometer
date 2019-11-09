@@ -23,76 +23,6 @@
 #include <vector>
 #include <array>
 
-WiFiManagerParameter::WiFiManagerParameter(const char *custom)
-{
-  _id = NULL;
-  _placeholder = NULL;
-  _length = 0;
-  _value = NULL;
-  _labelPlacement = WFM_LABEL_BEFORE;
-
-  _customHTML = custom;
-}
-
-WiFiManagerParameter::WiFiManagerParameter(const char *id, const char *placeholder, const char *defaultValue, int length)
-{
-  init(id, placeholder, defaultValue, length, "", WFM_LABEL_BEFORE);
-}
-
-WiFiManagerParameter::WiFiManagerParameter(const char *id, const char *placeholder, const char *defaultValue, int length, const char *custom)
-{
-  init(id, placeholder, defaultValue, length, custom, WFM_LABEL_BEFORE);
-}
-
-WiFiManagerParameter::WiFiManagerParameter(const char *id, const char *placeholder, const char *defaultValue, int length, const char *custom, int labelPlacement)
-{
-  init(id, placeholder, defaultValue, length, custom, labelPlacement);
-}
-
-void WiFiManagerParameter::init(const char *id, const char *placeholder, const char *defaultValue, int length, const char *custom, int labelPlacement)
-{
-  _id = id;
-  _placeholder = placeholder;
-  _length = length;
-  _labelPlacement = labelPlacement;
-  _value = new char[length + 1];
-  for (int i = 0; i < length; i++)
-  {
-    _value[i] = 0;
-  }
-  if (defaultValue != NULL)
-  {
-    strncpy(_value, defaultValue, length);
-  }
-
-  _customHTML = custom;
-}
-
-const char *WiFiManagerParameter::getValue()
-{
-  return _value;
-}
-const char *WiFiManagerParameter::getID()
-{
-  return _id;
-}
-const char *WiFiManagerParameter::getPlaceholder()
-{
-  return _placeholder;
-}
-int WiFiManagerParameter::getValueLength()
-{
-  return _length;
-}
-int WiFiManagerParameter::getLabelPlacement()
-{
-  return _labelPlacement;
-}
-const char *WiFiManagerParameter::getCustomHTML()
-{
-  return _customHTML;
-}
-
 Webserver::Webserver()
 {
   //Do a network scan before setting up an access point so as not to close WiFiNetwork while scanning.
@@ -101,14 +31,6 @@ Webserver::Webserver()
 Webserver::~Webserver()
 {
   free(networkIndices); //indices array no longer required so free memory
-}
-
-void Webserver::addParameter(WiFiManagerParameter *p)
-{
-  _params[_paramsCount] = p;
-  _paramsCount++;
-  DEBUG_WM("Adding parameter");
-  DEBUG_WM(p->getID());
 }
 
 void Webserver::header()

@@ -139,36 +139,6 @@ const char HTTP_END[] PROGMEM = "</div></body></html>";
 const char HTTP_UPDATE_FAI[] PROGMEM = "Update Failed!";
 const char HTTP_UPDATE_SUC[] PROGMEM = "Update Success! Rebooting...";
 
-#define WIFI_MANAGER_MAX_PARAMS 25
-
-class WiFiManagerParameter
-{
-public:
-  WiFiManagerParameter(const char *custom);
-  WiFiManagerParameter(const char *id, const char *placeholder, const char *defaultValue, int length);
-  WiFiManagerParameter(const char *id, const char *placeholder, const char *defaultValue, int length, const char *custom);
-  WiFiManagerParameter(const char *id, const char *placeholder, const char *defaultValue, int length, const char *custom, int labelPlacement);
-
-  const char *getID();
-  const char *getValue();
-  const char *getPlaceholder();
-  int getValueLength();
-  int getLabelPlacement();
-  const char *getCustomHTML();
-
-private:
-  const char *_id;
-  const char *_placeholder;
-  char *_value;
-  int _length;
-  int _labelPlacement;
-  const char *_customHTML;
-
-  void init(const char *id, const char *placeholder, const char *defaultValue, int length, const char *custom, int labelPlacement);
-
-  friend class Webserver;
-};
-
 class Webserver
 {
 public:
@@ -213,8 +183,6 @@ public:
   void setAPCallback(void (*func)(Webserver *));
   //called when settings have been changed and connection was successful
   void setSaveConfigCallback(void (*func)(void));
-  //adds a custom parameter
-  void addParameter(WiFiManagerParameter *p);
   //if this is set, it will exit after config, even if connection is unsucessful.
   void setBreakAfterConfig(boolean shouldBreak);
   //if this is set, try WPS setup when starting (this will delay config portal for up to 2 mins)
@@ -264,7 +232,6 @@ private:
   IPAddress _sta_static_gw;
   IPAddress _sta_static_sn;
 
-  int _paramsCount = 0;
   int _minimumQuality = -1;
   boolean _removeDuplicateAPs = true;
   boolean _shouldBreakAfterConfig = false;
@@ -315,9 +282,6 @@ private:
 
   void (*_apcallback)(Webserver *) = NULL;
   void (*_savecallback)(void) = NULL;
-
-  WiFiManagerParameter *_params[WIFI_MANAGER_MAX_PARAMS];
-  
 
   template <typename Generic>
   void DEBUG_WM(Generic text);
