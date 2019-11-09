@@ -106,35 +106,13 @@ DoubleResetDetector drd(DRD_TIMEOUT, DRD_ADDRESS);
 uint32_t diff_time = 0;
 uint32_t interval_send_data = 30000;
 uint32_t start_time = 0;
-#define TEMP_CELSIUS 0
-#define TEMP_FAHRENHEIT 1
-#define TEMP_KELVIN 2
+
 
 Webserver* webserver;
 
 int detectTempSensor(const uint8_t pins[]);
 
 bool shouldSaveConfig = false;
-
-struct FlashConfig {
-  char my_token[TKIDSIZE * 2];
-  char my_name[TKIDSIZE] = "iGauge000";
-  char my_server[TKIDSIZE];
-  char my_url[TKIDSIZE * 2];
-  char my_db[TKIDSIZE] = "iGauge";
-  char my_username[TKIDSIZE];
-  char my_password[TKIDSIZE];
-  char my_job[TKIDSIZE] = "iGauge";
-  char my_instance[TKIDSIZE] = "000";
-
-  String my_ssid;
-  String my_psk;
-  uint8_t my_api;
-  uint32_t my_sleeptime = 15 * 60;
-  uint16_t my_port = 80;
-  uint8_t my_tempscale = TEMP_CELSIUS;
-  int8_t my_OWpin = -1;
-};
 
 FlashConfig g_flashConfig;
 
@@ -307,11 +285,11 @@ void blink_red(uint32_t Frequency)
 float scaleTemperature(float t)
 {
   switch (g_flashConfig.my_tempscale) {
-    case TEMP_FAHRENHEIT:
+    case TempFahrenheit:
       return (1.8f * t + 32); 
-    case TEMP_KELVIN:
+    case TempKelvin:
       return t + 273.15f;
-    case TEMP_CELSIUS:
+    case TempCelsius:
       // fall through
     default:
       return t;
@@ -320,16 +298,7 @@ float scaleTemperature(float t)
 
 String tempScaleLabel(void)
 {
-  switch (g_flashConfig.my_tempscale) {
-    case TEMP_FAHRENHEIT:
-      return "F";
-    case TEMP_KELVIN:
-      return "K";
-    case TEMP_CELSIUS:
-      // fall through
-    default:
-      return "C";
-  }
+  return TempLabelsShort[g_flashConfig.my_tempscale];
 }
 
 // callback notifying us of the need to save config
@@ -387,7 +356,7 @@ bool readConfig()
           if (doc.containsKey("Instance"))
             strcpy(g_flashConfig.my_instance, doc["Instance"]);
           if (doc.containsKey("TS"))
-            g_flashConfig.my_tempscale = doc["TS"];
+            g_flashConfig.my_tempscale = (TempUnits) doc["TS"].as<uint8_t>();
           if (doc.containsKey("OWpin"))
             g_flashConfig.my_OWpin = doc["OWpin"];
           if (doc.containsKey("SSID"))
@@ -749,7 +718,7 @@ bool saveConfig()
   doc["Job"] = g_flashConfig.my_job;
   doc["Instance"] = g_flashConfig.my_instance;
   
-  doc["TS"] = g_flashConfig.my_tempscale;
+  doc["TS"] = (uint8_t) g_flashConfig.my_tempscale;
   doc["OWpin"] = g_flashConfig.my_OWpin;
 
   // Store current Wifi credentials
@@ -802,13 +771,9 @@ bool processResponse(String response)
   return false;
 }
 
-bool uploadData(uint8_t service)
+bool forwardUbidots()
 {
-  SenderClass sender;
-
-#ifdef API_UBIDOTS
-  if (service == DTUbiDots)
-  {
+    SenderClass sender;
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
@@ -818,12 +783,11 @@ bool uploadData(uint8_t service)
     sender.add("Open_time",p_Statistic_->opening_time/1000);
     CONSOLELN(F("\ncalling Ubidots"));
     return sender.sendUbidots(g_flashConfig.my_token, g_flashConfig.my_name);
-  }
-#endif
+}
 
-#ifdef API_MQTT
-  if (service == DTMQTT)
-  {
+bool forwardMQTT()
+{
+    SenderClass sender;
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("temp_units", tempScaleLabel());
     sender.add("pressure", Pressure);
@@ -835,12 +799,11 @@ bool uploadData(uint8_t service)
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling MQTT"));
     return sender.sendMQTT(g_flashConfig.my_server, g_flashConfig.my_port, g_flashConfig.my_username, g_flashConfig.my_password, g_flashConfig.my_name);
-  }
-#endif
+}
 
-#ifdef API_INFLUXDB
-  if (service == DTInfluxDB)
-  {
+bool forwardInfluxDB()
+{
+    SenderClass sender;
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("temp_units", tempScaleLabel());
     sender.add("pressure", Pressure);
@@ -853,13 +816,11 @@ bool uploadData(uint8_t service)
     CONSOLELN(F("\ncalling InfluxDB"));
     CONSOLELN(String(F("Sending to db: ")) + g_flashConfig.my_db + String(F(" w/ credentials: ")) + g_flashConfig.my_username + String(F(":")) + g_flashConfig.my_password);
     return sender.sendInfluxDB(g_flashConfig.my_server, g_flashConfig.my_port, g_flashConfig.my_db, g_flashConfig.my_name, g_flashConfig.my_username, g_flashConfig.my_password);
-  }
-#endif
+}
 
-#ifdef API_PROMETHEUS
-  if (service == DTPrometheus)
-  {
-    
+bool forwardPrometheus()
+{
+    SenderClass sender;
     sender.add("temperature", Temperatur);
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
@@ -870,13 +831,11 @@ bool uploadData(uint8_t service)
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling Prometheus Pushgateway"));
     return sender.sendPrometheus(g_flashConfig.my_server, g_flashConfig.my_port, g_flashConfig.my_job, g_flashConfig.my_instance);
-  }
-#endif
+}
 
-#ifdef API_GENERIC
-  if ((service == DTHTTP) || (service == DTCraftBeerPi) || (service == DTiSPINDELde) || (service == DTTCP))
-  {
-
+bool forwardGeneric()
+{
+    SenderClass sender;
     sender.add("name", g_flashConfig.my_name);
     sender.add("ID", ESP.getChipId());
     if (g_flashConfig.my_token[0] != 0)
@@ -891,60 +850,37 @@ bool uploadData(uint8_t service)
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
     
-
-    if (service == DTHTTP)
-    {
-      CONSOLELN(F("\ncalling HTTP"));
-      return sender.sendGenericPost(g_flashConfig.my_server, g_flashConfig.my_url, g_flashConfig.my_port);
+    switch(g_flashConfig.my_api) {
+      case API_HTTP:
+        return sender.sendGenericPost(g_flashConfig.my_server, g_flashConfig.my_url, g_flashConfig.my_port);
+      case API_CraftBeerPi:
+        return sender.sendGenericPost(g_flashConfig.my_server, CBP_ENDPOINT, 5000);
+      case API_TCP: {
+        String response = sender.sendTCP(g_flashConfig.my_server, g_flashConfig.my_port);
+        return processResponse(response);
+      }
     }
-    else if (service == DTCraftBeerPi)
-    {
-      CONSOLELN(F("\ncalling CraftbeerPi"));
-      return sender.sendGenericPost(g_flashConfig.my_server, CBP_ENDPOINT, 5000);
-    }
-    else if (service == DTiSPINDELde)
-    {
-      CONSOLELN(F("\ncalling iSPINDELde"));
-      return sender.sendTCP("ispindle.de", 9501);
-    }
-    else if (service == DTTCP)
-    {
-      CONSOLELN(F("\ncalling TCP"));
-      String response = sender.sendTCP(g_flashConfig.my_server, g_flashConfig.my_port);
-      return processResponse(response);
-    }
-  }
-#endif // DATABASESYSTEM
-
-#ifdef API_FHEM
-  if (service == DTFHEM)
-  {
-    
-    
-    sender.add("temperature", scaleTemperature(Temperatur));
-    sender.add("temp_units", tempScaleLabel());
-    sender.add("pressure", Pressure);
-    sender.add("carbondioxid", carbondioxide);
-    sender.add("interval", interval_send_data);
-    sender.add("RSSI", WiFi.RSSI());
-    sender.add("Opening_times",p_Statistic_->times_open);
-    sender.add("Open_time",p_Statistic_->opening_time/1000);    
-    sender.add("ID", ESP.getChipId());
-    CONSOLELN(F("\ncalling FHEM"));
-    return sender.sendFHEM(g_flashConfig.my_server, g_flashConfig.my_port, g_flashConfig.my_name);
-  }
-#endif // DATABASESYSTEM ==
-#ifdef API_TCONTROL
-  if (service == DTTcontrol)
-  {
-    sender.add("T", scaleTemperature(Temperatur));
-    CONSOLELN(F("\ncalling TCONTROL"));
-    return sender.sendTCONTROL(g_flashConfig.my_server, 4968);
-  }
-#endif // DATABASESYSTEM ==
-  return false;
 }
 
+bool uploadData()
+{
+  switch(g_flashConfig.my_api) {
+    case API_Ubidots:
+      return forwardUbidots();
+    case API_MQTT:
+      return forwardMQTT();
+    case API_InfluxDB:
+      return forwardInfluxDB();
+    case API_Prometheus:
+      return forwardPrometheus();
+    case API_HTTP:
+    case API_CraftBeerPi:
+    case API_TCP:
+      return forwardGeneric();
+    default:
+      return false;
+  }
+}
 
 void requestTemp()
 {
@@ -1372,7 +1308,7 @@ void setup()
   {
     CONSOLE(F("IP: "));
     CONSOLELN(WiFi.localIP());
-    uploadData(g_flashConfig.my_api);
+    uploadData();
   }
   else
   {
@@ -1587,7 +1523,7 @@ void loop()
   {
     
     //requestTemp();
-    uploadData(g_flashConfig.my_api);
+    uploadData();
     start_time = millis();
 
   }

@@ -20,6 +20,8 @@
 
 #include "webserver.h"
 #include <ArduinoJson.h>
+#include <vector>
+#include <array>
 
 WiFiManagerParameter::WiFiManagerParameter(const char *custom)
 {
@@ -123,6 +125,7 @@ boolean Webserver::startWebserver()
   /* Setup web pages: root, wifi config pages, SO captive portal detectors and not found. */
   server->on("/", std::bind(&Webserver::handleRoot, this));
   server->on("/wifi", std::bind(&Webserver::handleWifi, this));
+  server->on("/config", std::bind(&Webserver::handleConfig, this));
   server->on("/wifisave", std::bind(&Webserver::handleWifiSave, this));
   server->on("/close", std::bind(&Webserver::handleServerClose, this));
   server->on("/i", std::bind(&Webserver::handleInfo, this));
@@ -389,7 +392,7 @@ void Webserver::handleWifi()
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
   page += FPSTR(HTTP_HEAD_END);
-  page += F("<h2>Configuration</h2>");
+  page += F("<h2>WiFi Config</h2>");
   //Print list of WiFi networks that were found in earlier scan
   if (numberOfNetworks == 0)
   {
@@ -515,6 +518,152 @@ void Webserver::handleWifi()
 
     page += "<br/>";
   }
+
+  page += FPSTR(HTTP_FORM_END);
+
+  page += FPSTR(HTTP_END);
+
+  server->send(200, "text/html", page);
+
+  DEBUG_WM(F("Sent config page"));
+}
+
+struct ListItem {
+  int val;
+  String name;
+};
+
+/** Wifi config page handler */
+void Webserver::handleConfig()
+{
+  header();
+  String page = FPSTR(HTTP_HEAD);
+  page.replace("{v}", "Config ESP");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+  page += F("<h2>eManometer Config</h2>");
+
+  auto addParam = [&page] (String id, String label, String value, int len) {
+    String pitem;
+    pitem = FPSTR(HTTP_FORM_LABEL);
+    pitem += FPSTR(HTTP_FORM_PARAM);
+    
+    char parLength[2];
+
+    pitem.replace("{i}", id);
+    pitem.replace("{n}", id);
+    pitem.replace("{p}", label);
+    snprintf(parLength, 2, "%d", len);
+    pitem.replace("{l}", parLength);
+    pitem.replace("{v}", value);
+
+    page += pitem;
+  };
+
+  auto addList = [&page] (String id, String label, int value, std::vector<ListItem> items) {
+    String pitem;
+    pitem = FPSTR(HTTP_FORM_LABEL);
+    pitem += FPSTR(HTTP_FORM_LIST);
+  
+    pitem.replace("{i}", id);
+    pitem.replace("{n}", id);
+    pitem.replace("{p}", label);
+    pitem.replace("{v}", String(value));
+
+    for (auto& item: items) {
+      pitem += "<option value=" + String(item.val) + ">" + item.name + "</option>";
+    }
+
+    pitem += "</select>";
+
+    page += pitem;
+  };
+
+  auto addList2 = [&page] (String id, String label, int value, const std::vector<String>& items) {
+    String pitem;
+    pitem = FPSTR(HTTP_FORM_LABEL);
+    pitem += FPSTR(HTTP_FORM_LIST);
+  
+    pitem.replace("{i}", id);
+    pitem.replace("{n}", id);
+    pitem.replace("{p}", label);
+    pitem.replace("{v}", String(value));
+
+    for (int i = 0; i < items.size(); ++i) {
+      pitem += "<option value=" + String(i) + ">" + items[i] + "</option>";
+    }
+
+    pitem += "</select>";
+
+    page += pitem;
+  };
+
+  // page += FPSTR(HTTP_FORM_START);
+  page += F("<form method=\"get\" action=\"cs\">");
+
+  addParam("name", "Name", g_flashConfig.my_name, 128);
+  addParam("interval", "Update Interval", String(g_flashConfig.my_sleeptime), 12);
+  addList2("tempscale", "Temperature Unit", g_flashConfig.my_tempscale, TempLabels);
+  /*
+  addList("tempscale", "Temperature Unit", g_flashConfig.my_tempscale, {
+    {0, "Celcius"},
+    {1, "Fahrenheit"},
+    {2, "Kelvin"}
+  });
+  */
+
+#if 0
+  char parLength[2];
+  // add the extra parameters to the form
+  for (int i = 0; i < _paramsCount; i++)
+  {
+    if (_params[i] == NULL)
+    {
+      break;
+    }
+
+    String pitem;
+    switch (_params[i]->getLabelPlacement())
+    {
+    case WFM_LABEL_BEFORE:
+      pitem = FPSTR(HTTP_FORM_LABEL);
+      pitem += FPSTR(HTTP_FORM_PARAM);
+      break;
+    case WFM_LABEL_AFTER:
+      pitem = FPSTR(HTTP_FORM_PARAM);
+      pitem += FPSTR(HTTP_FORM_LABEL);
+      break;
+    default:
+      // WFM_NO_LABEL
+      pitem = FPSTR(HTTP_FORM_PARAM);
+      break;
+    }
+
+    String customHTML = reinterpret_cast<const __FlashStringHelper *>(_params[i]->getCustomHTML());
+    if (_params[i]->getID() != NULL)
+    {
+      pitem.replace("{i}", _params[i]->getID());
+      pitem.replace("{n}", _params[i]->getID());
+      pitem.replace("{p}", _params[i]->getPlaceholder());
+      snprintf(parLength, 2, "%d", _params[i]->getValueLength());
+      pitem.replace("{l}", parLength);
+      pitem.replace("{v}", _params[i]->getValue());
+      pitem.replace("{c}", customHTML);
+    }
+    else
+    {
+      pitem = customHTML;
+    }
+
+    page += pitem;
+  }
+  if (_params[0] != NULL)
+  {
+    page += "<br/>";
+  }
+#endif
 
   page += FPSTR(HTTP_FORM_END);
 

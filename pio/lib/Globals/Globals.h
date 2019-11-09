@@ -11,19 +11,12 @@
 #pragma once
 #include <Arduino.h>
 #include <Hash.h>
+#include <array>
 
 #include <Ticker.h>
 
 // defines go here
 #define FIRMWAREVERSION "0.7.6b"
-
-#define API_FHEM true
-#define API_UBIDOTS true
-#define API_GENERIC true
-#define API_TCONTROL true
-#define API_INFLUXDB true
-#define API_PROMETHEUS true
-#define API_MQTT true
 
 #ifndef DEBUG
 #define DEBUG true
@@ -67,16 +60,18 @@
 
 #define CBP_ENDPOINT "/api/hydrometer/v1/data"
 
-#define DTUbiDots 0
-#define DTThingspeak 1
-#define DTCraftBeerPi 2
-#define DTHTTP 3
-#define DTTcontrol 4
-#define DTFHEM 5
-#define DTTCP 6
-#define DTiSPINDELde 7
-#define DTInfluxDB 8
-#define DTPrometheus 9
+enum RemoteAPI {
+    API_Off = 0,
+    API_Ubidots = 1,
+    API_Thingspeak = 2,
+    API_CraftBeerPi = 3,
+    API_HTTP = 4,
+    API_TCP = 5,
+    API_InfluxDB = 6,
+    API_Prometheus = 7,
+    API_MQTT = 8
+};
+
 #define DTMQTT 10
 
 // Number of seconds after reset during which a
@@ -147,5 +142,36 @@ extern statistics_t Statistic_;
 extern p_statistics_t p_Statistic_;
 extern basic_config_t Basic_config_;
 extern p_basic_config_t p_Basic_config_; 
+
+enum TempUnits {
+    TempCelsius = 0,
+    TempFahrenheit = 1,
+    TempKelvin = 2
+};
+
+extern const std::vector<String> TempLabelsShort;
+extern const std::vector<String> TempLabels;
+
+struct FlashConfig {
+  char my_token[TKIDSIZE * 2];
+  char my_name[TKIDSIZE] = "iGauge000";
+  char my_server[TKIDSIZE];
+  char my_url[TKIDSIZE * 2];
+  char my_db[TKIDSIZE] = "iGauge";
+  char my_username[TKIDSIZE];
+  char my_password[TKIDSIZE];
+  char my_job[TKIDSIZE] = "iGauge";
+  char my_instance[TKIDSIZE] = "000";
+
+  String my_ssid;
+  String my_psk;
+  uint8_t my_api;
+  uint32_t my_sleeptime = 15 * 60;
+  uint16_t my_port = 80;
+  TempUnits my_tempscale = TempCelsius;
+  int8_t my_OWpin = -1;
+};
+
+extern FlashConfig g_flashConfig;
 
 #endif

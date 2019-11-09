@@ -128,6 +128,7 @@ const char HTTP_FORM_START3[] PROGMEM = "\">";
 
 const char HTTP_FORM_LABEL[] PROGMEM = "<label for=\"{i}\">{p}</label>";
 const char HTTP_FORM_PARAM[] PROGMEM = "<input id=\"{i}\" name=\"{n}\" length={l} placeholder=\"{p}\" value=\"{v}\" {c}>";
+const char HTTP_FORM_LIST[] PROGMEM = "<select id=\"{i}\" name=\"{n}\" placeholder=\"{p}\" value=\"{v}\">";
 const char HTTP_FORM_END[] PROGMEM = "<button class=\"btn\" type=\"submit\">save</button></form>";
 const char HTTP_SAVED[] PROGMEM = "<div class=\"msg\"><strong>Credentials Saved</strong><br>Trying to connect ESP to the {x} network.<br>Give it 10 seconds or so and check <a href=\"/\">how it went.</a> <p/>The {v} you are connected to will be restarted on the radio channel of the {x} network and continue in normal mode thus not being accessible until manually resetted to configuration mode.";
 const char HTTP_END[] PROGMEM = "</div></body></html>";
@@ -276,6 +277,7 @@ private:
 
   void handleRoot();
   void handleWifi();
+  void handleConfig();
   void handleWifiSave();
   void handleServerClose();
   void handleInfo();
