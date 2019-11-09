@@ -18,6 +18,7 @@
 #include <ESP8266WebServer.h>
 #include <DNSServer.h>
 #include <memory>
+#include <list>
 #undef min
 #undef max
 #include <algorithm>
@@ -248,6 +249,9 @@ private:
 
   void handleRoot();
   void handleWifi();
+
+  void genConfigPage(String& page, const std::list<String>& params);
+
   void handleConfig();
   void handleConfigSave();
   void handleHWConfig();

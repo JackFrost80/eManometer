@@ -12,6 +12,7 @@
 #include <Arduino.h>
 #include <Hash.h>
 #include <array>
+#include "MR44V064B.h"
 
 #include <Ticker.h>
 
@@ -45,7 +46,8 @@
 #define PORTALTIMEOUT 300
 
 #define ADCDIVISOR 191.8
-#define ONE_WIRE_BUS D6 // DS18B20 on ESP pin12
+#define ONE_WIRE_BUS D3 // DS18B20 on ESP pin12
+
 #define OW_PINS \
     (const uint8_t[]) { D3 }
 #define RESOLUTION 12 // 12bit resolution == 750ms update rate
@@ -96,48 +98,10 @@ extern float Temperatur, Tilt, Gravity,Pressure,carbondioxide;
 
 extern bool saveConfig();
 extern void formatSpiffs();
+extern void validateInput(const char *input, char *output);
 
 float scaleTemperature(float t);
 String tempScaleLabel(void);
-
-typedef struct controller {
-	
-	float Kp;
-    float Setpoint;
-    float dead_zone;
-    float min_open_time;
-    double setpoint_carbondioxide;
-	uint16_t cv;
-    uint16_t cycle_time;
-    uint16_t calc_time;
-    uint32_t open_time;
-    uint32_t close_time;
-    bool compressed_gas_bottle;
-    uint32_t crc32;
-
-	
-
-} controller_t,*p_controller_t;
-
-typedef struct statistics {
-float opening_time;
-uint32_t times_open;
-uint32_t crc32;
-}
-statistics_t,*p_statistics_t;
-
-typedef struct basic_config {
-uint8_t type_of_display;
-uint8_t use_regulator;
-uint16_t zero_value_sensor;
-uint16_t value_red;
-float value_blue;
-float value_turkis;
-float value_green;
-double faktor_pressure;
-uint32_t crc32;
-}
-basic_config_t,*p_basic_config_t;
 
 extern statistics_t Statistic_;
 extern p_statistics_t p_Statistic_;
@@ -154,15 +118,15 @@ extern const std::vector<String> TempLabelsShort;
 extern const std::vector<String> TempLabels;
 
 struct FlashConfig {
-  char my_token[TKIDSIZE * 2];
-  char my_name[TKIDSIZE] = "eManometer000";
-  char my_server[TKIDSIZE];
-  char my_url[TKIDSIZE * 2];
-  char my_db[TKIDSIZE] = "eManometer";
-  char my_username[TKIDSIZE];
-  char my_password[TKIDSIZE];
-  char my_job[TKIDSIZE] = "eManometer";
-  char my_instance[TKIDSIZE] = "000";
+  String my_token;
+  String my_name = "eManometer000";
+  String my_server;
+  String my_url;
+  String my_db = "eManometer";
+  String my_username;
+  String my_password;
+  String my_job = "eManometer";
+  String my_instance = "000";
 
   String my_ssid;
   String my_psk;
@@ -170,7 +134,6 @@ struct FlashConfig {
   uint32_t my_sleeptime = 15 * 60;
   uint16_t my_port = 80;
   TempUnits my_tempscale = TempCelsius;
-  int8_t my_OWpin = -1;
 };
 
 extern FlashConfig g_flashConfig;
@@ -181,5 +144,7 @@ extern statistics_t Statistic_;
 extern p_statistics_t p_Statistic_;
 extern basic_config_t Basic_config_;
 extern p_basic_config_t p_Basic_config_; 
+
+extern MR44V064B_Base FRAM;
 
 #endif

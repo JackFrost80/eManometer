@@ -23,6 +23,334 @@
 #include <vector>
 #include <array>
 
+#include "Globals.h"
+#include <map>
+
+struct ListItem {
+  int val;
+  String name;
+};
+
+static void addParam(String& page, String id, String label, String value, int len)
+{
+    String pitem;
+    pitem = FPSTR(HTTP_FORM_LABEL);
+    pitem += FPSTR(HTTP_FORM_PARAM);
+    
+    char parLength[2];
+
+    pitem.replace("{i}", id);
+    pitem.replace("{n}", id);
+    pitem.replace("{p}", label);
+    snprintf(parLength, 2, "%d", len);
+    pitem.replace("{l}", parLength);
+    pitem.replace("{v}", value);
+
+    page += pitem;
+}
+
+static void addList(String& page, String id, String label, int value, std::vector<ListItem> items)
+{
+    String pitem;
+    pitem = FPSTR(HTTP_FORM_LABEL);
+    pitem += FPSTR(HTTP_FORM_LIST);
+  
+    pitem.replace("{i}", id);
+    pitem.replace("{n}", id);
+    pitem.replace("{p}", label);
+    pitem.replace("{v}", String(value));
+
+    for (auto& item: items) {
+      pitem += "<option value=" + String(item.val) + ">" + item.name + "</option>";
+    }
+
+    pitem += "</select>";
+
+    page += pitem;
+}
+
+static void addList(String& page, String id, String label, int value, const std::vector<String>& items)
+{
+    String pitem;
+    pitem = FPSTR(HTTP_FORM_LABEL);
+    pitem += FPSTR(HTTP_FORM_LIST);
+  
+    pitem.replace("{i}", id);
+    pitem.replace("{n}", id);
+    pitem.replace("{p}", label);
+    pitem.replace("{v}", String(value));
+
+    for (int i = 0; i < items.size(); ++i) {
+      pitem += "<option value=" + String(i) + ">" + items[i] + "</option>";
+    }
+
+    pitem += "</select>";
+
+    page += pitem;
+}
+
+void validateInput(String input, String& output)
+{
+  input.trim();
+  input.replace(' ', '_');
+  output = input;
+}
+
+// Map Holding all possible Configuration Parameters
+// First item is the internal name of the Parameter
+// Second a function to be called to generete html for the parameter
+// Third a function to be called when the parameter is changed to save the new values
+
+struct paramFunctions {
+  std::function<void(String& page)> genHTML;
+  std::function<void(const String& arg)> saveValue;
+};
+
+typedef std::map<
+  String,
+  paramFunctions
+> paramMap;
+
+paramMap parameters = {
+  {
+    "name",
+    {
+      [] (String& page) {
+        addParam(page, "name", "Name", String(g_flashConfig.my_name), 128);
+      },
+      [] (const String& arg) {
+        validateInput(arg, g_flashConfig.my_name);
+      }
+    }
+  },
+  {
+    "interval",
+    {
+      [] (String& page) {
+        addParam(page, "interval", "Update Interval", String(g_flashConfig.my_sleeptime), 128);
+      },
+      [] (const String& arg) {
+        g_flashConfig.my_sleeptime = arg.toInt();
+      }
+    }
+  },
+  {
+    "api",
+    {
+      [] (String& page) {
+        addList(page, "api", "API", g_flashConfig.my_api, RemoteAPILabels);
+      },
+      [] (const String& arg) {
+        g_flashConfig.my_api = arg.toInt();
+      }
+    }
+  },
+  {
+    "token",
+    {
+      [] (String& page) {
+        addParam(page, "token", "Token", g_flashConfig.my_token, 128);
+      },
+      [] (const String& arg) {
+        validateInput(arg, g_flashConfig.my_token);
+      }
+    }
+  },
+  {
+    "address",
+    {
+      [] (String& page) {
+        addParam(page, "address", "Server Address", g_flashConfig.my_server, 128);
+      },
+      [] (const String& arg) {
+        validateInput(arg, g_flashConfig.my_server);
+      }
+    }
+  },
+  {
+    "port",
+    {
+      [] (String& page) {
+        addParam(page, "port", "Port Number", String(g_flashConfig.my_port), 128);
+      },
+      [] (const String& arg) {
+        g_flashConfig.my_port = arg.toInt();
+      }
+    }
+  },
+  {
+    "url",
+    {
+      [] (String& page) {
+        addParam(page, "url", "URL", g_flashConfig.my_url, 128);
+      },
+      [] (const String& arg) {
+        validateInput(arg, g_flashConfig.my_url);
+      }
+    }
+  },
+  {
+    "db",
+    {
+      [] (String& page) {
+        addParam(page, "db", "Influx DB", g_flashConfig.my_db, 128);
+      },
+      [] (const String& arg) {
+        validateInput(arg, g_flashConfig.my_db);
+      }
+    }
+  },
+  {
+    "username",
+    {
+      [] (String& page) {
+        addParam(page, "username", "Username", g_flashConfig.my_username, 128);
+      },
+      [] (const String& arg) {
+        validateInput(arg, g_flashConfig.my_username);
+      }
+    }
+  },
+  {
+    "password",
+    {
+      [] (String& page) {
+        addParam(page, "password", "Password", g_flashConfig.my_password, 128);
+      },
+      [] (const String& arg) {
+        validateInput(arg, g_flashConfig.my_password);
+      }
+    }
+  },
+  {
+    "job",
+    {
+      [] (String& page) {
+        addParam(page, "job", "Prometheus Job", g_flashConfig.my_job, 128);
+      },
+      [] (const String& arg) {
+        validateInput(arg, g_flashConfig.my_job);
+      }
+    }
+  },
+  {
+    "instance",
+    {
+      [] (String& page) {
+        addParam(page, "instance", "Prometheus Instance", g_flashConfig.my_instance, 128);
+      },
+      [] (const String& arg) {
+        validateInput(arg, g_flashConfig.my_instance);
+      }
+    }
+  },
+  {
+    "tempscale",
+    {
+      [] (String& page) {
+        addList(page, "tempscale", "Temperature Unit", g_flashConfig.my_tempscale, TempLabels);
+      },
+      [] (const String& arg) {
+        g_flashConfig.my_tempscale = (TempUnits) arg.toInt();
+      }
+    }
+  },
+  {
+    "setpoint_carb",
+    {
+      [] (String& page) {
+        addParam(page, "setpoint_carb", "Target Carbonation [g/l]", String(p_Controller_->setpoint_carbondioxide), 12);
+      },
+      [] (const String& arg) {
+        p_Controller_->setpoint_carbondioxide = arg.toInt();
+      }
+    }
+  },
+  {
+    "setpoint",
+    {
+      [] (String& page) {
+        addParam(page, "setpoint", "Target Pressure [bar]", String(p_Controller_->Setpoint), 12);
+      },
+      [] (const String& arg) {
+        p_Controller_->Setpoint = arg.toInt();
+      }
+    }
+  },
+  {
+    "controller_p_value",
+    {
+      [] (String& page) {
+        addParam(page, "controller_p_value", "Controller P Value", String(p_Controller_->Kp), 12);
+      },
+      [] (const String& arg) {
+        p_Controller_->Kp = arg.toInt();
+      }
+    }
+  },
+  {
+    "opening_time",
+    {
+      [] (String& page) {
+        addParam(page, "opening_time", "Mininum valve open time [ms]", String(p_Controller_->min_open_time), 12);
+      },
+      [] (const String& arg) {
+        p_Controller_->open_time = arg.toInt();
+      }
+    }
+  },
+  {
+    "dead_zone",
+    {
+      [] (String& page) {
+        addParam(page, "dead_zone", "Dead Zone [bar]", String(p_Controller_->dead_zone), 12);
+      },
+      [] (const String& arg) {
+        p_Controller_->dead_zone = arg.toInt();
+      }
+    }
+  },
+  {
+    "cycle_time",
+    {
+      [] (String& page) {
+        addParam(page, "cycle_time", "Cycle Time [ms]", String(p_Controller_->cycle_time), 12);
+      },
+      [] (const String& arg) {
+        p_Controller_->cycle_time = arg.toInt();
+      }
+    }
+  },
+  {
+    "pressure_source",
+    {
+      [] (String& page) {
+          addList(page, "pressure_source", "Pressure Source", p_Controller_->compressed_gas_bottle, {
+            {0, "Fermentation"},
+            {1, "CO2 Gas Bottle"}
+          });
+      },
+      [] (const String& arg) {
+        p_Controller_->compressed_gas_bottle = arg.toInt();
+      }
+    }
+  },
+  {
+    "display",
+    {
+      [] (String& page) {
+        addList(page, "display", "Display Type", p_Basic_config_->type_of_display, {
+          {0, "SH1106"},
+          {1, "SSD1306"}
+        });
+      },
+      [] (const String& arg) {
+        p_Basic_config_->type_of_display = arg.toInt();
+      }
+    }
+  },
+};
+
 Webserver::Webserver()
 {
   //Do a network scan before setting up an access point so as not to close WiFiNetwork while scanning.
@@ -453,69 +781,6 @@ void Webserver::handleWifi()
   DEBUG_WM(F("Sent config page"));
 }
 
-struct ListItem {
-  int val;
-  String name;
-};
-
-static void addParam(String& page, String id, String label, String value, int len)
-{
-    String pitem;
-    pitem = FPSTR(HTTP_FORM_LABEL);
-    pitem += FPSTR(HTTP_FORM_PARAM);
-    
-    char parLength[2];
-
-    pitem.replace("{i}", id);
-    pitem.replace("{n}", id);
-    pitem.replace("{p}", label);
-    snprintf(parLength, 2, "%d", len);
-    pitem.replace("{l}", parLength);
-    pitem.replace("{v}", value);
-
-    page += pitem;
-}
-
-static void addList(String& page, String id, String label, int value, std::vector<ListItem> items)
-{
-    String pitem;
-    pitem = FPSTR(HTTP_FORM_LABEL);
-    pitem += FPSTR(HTTP_FORM_LIST);
-  
-    pitem.replace("{i}", id);
-    pitem.replace("{n}", id);
-    pitem.replace("{p}", label);
-    pitem.replace("{v}", String(value));
-
-    for (auto& item: items) {
-      pitem += "<option value=" + String(item.val) + ">" + item.name + "</option>";
-    }
-
-    pitem += "</select>";
-
-    page += pitem;
-}
-
-static void addList(String& page, String id, String label, int value, const std::vector<String>& items)
-{
-    String pitem;
-    pitem = FPSTR(HTTP_FORM_LABEL);
-    pitem += FPSTR(HTTP_FORM_LIST);
-  
-    pitem.replace("{i}", id);
-    pitem.replace("{n}", id);
-    pitem.replace("{p}", label);
-    pitem.replace("{v}", String(value));
-
-    for (int i = 0; i < items.size(); ++i) {
-      pitem += "<option value=" + String(i) + ">" + items[i] + "</option>";
-    }
-
-    pitem += "</select>";
-
-    page += pitem;
-}
-
 void Webserver::handleHWConfig()
 {
   header();
@@ -527,20 +792,25 @@ void Webserver::handleHWConfig()
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h2>Hardware Config</h2>");
 
-  // page += FPSTR(HTTP_FORM_START);
-  page += F("<form method=\"get\" action=\"cs\">");
+  genConfigPage(page, {"display"});
 
-  addList(page, "display", "Display Type", p_Basic_config_->type_of_display, {
-    {0, "SH1106"},
-    {1, "SSD1306"}
-  });
-
-  page += FPSTR(HTTP_FORM_END);
   page += FPSTR(HTTP_END);
 
   server->send(200, "text/html", page);
 
   DEBUG_WM(F("Sent config page"));
+}
+
+void Webserver::genConfigPage(String& page, const std::list<String>& params)
+{
+  // page += FPSTR(HTTP_FORM_START);
+  page += F("<form method=\"get\" action=\"cs\">");
+
+  for (const String& param: params) {
+    parameters[param].genHTML(page);
+  }
+
+  page += FPSTR(HTTP_FORM_END);
 }
 
 
@@ -556,23 +826,21 @@ void Webserver::handleAPIConfig()
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h2>Remote Sender Config</h2>");
 
-  // page += FPSTR(HTTP_FORM_START);
-  page += F("<form method=\"get\" action=\"cs\">");
+  genConfigPage(page, { 
+    "name", 
+    "interval", 
+    "api", 
+    "token", 
+    "address", 
+    "port", 
+    "url", 
+    "db", 
+    "username", 
+    "password", 
+    "job", 
+    "instance" 
+  });
 
-  addParam(page, "name", "Name", g_flashConfig.my_name, sizeof(g_flashConfig.my_name) -1);
-  addParam(page, "interval", "Update Interval", String(g_flashConfig.my_sleeptime), 12);
-  addList(page, "api", "API", g_flashConfig.my_api, RemoteAPILabels);
-  addParam(page, "token", "Token", g_flashConfig.my_token, sizeof(g_flashConfig.my_token)- 1);
-  addParam(page, "address", "Server Address", g_flashConfig.my_server, sizeof(g_flashConfig.my_server) -1);
-  addParam(page, "port", "Port Number", String(g_flashConfig.my_port), 128);
-  addParam(page, "url", "URL", g_flashConfig.my_url, sizeof(g_flashConfig.my_url)-1);
-  addParam(page, "db", "Influx DB", g_flashConfig.my_db, sizeof(g_flashConfig.my_db) -1);
-  addParam(page, "username", "Username", g_flashConfig.my_username, sizeof(g_flashConfig.my_username) -1);
-  addParam(page, "password", "Password", g_flashConfig.my_password, sizeof(g_flashConfig.my_password -1));
-  addParam(page, "job", "Prometheus Job", g_flashConfig.my_job, sizeof(g_flashConfig.my_job) -1);
-  addParam(page, "instance", "Prometheus Instance", g_flashConfig.my_instance, sizeof(g_flashConfig.my_instance)-1);
-
-  page += FPSTR(HTTP_FORM_END);
   page += FPSTR(HTTP_END);
 
   server->send(200, "text/html", page);
@@ -592,22 +860,17 @@ void Webserver::handleConfig()
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h2>eManometer Config</h2>");
 
-  // page += FPSTR(HTTP_FORM_START);
-  page += F("<form method=\"get\" action=\"cs\">");
-
-  addList(page, "tempscale", "Temperature Unit", g_flashConfig.my_tempscale, TempLabels);
-  addParam(page, "setpoint_carb", "Target Carbonation [g/l]", String(p_Controller_->setpoint_carbondioxide), 12);
-  addParam(page, "setpoint", "Target Pressure [bar]", String(p_Controller_->Setpoint), 12);
-  addParam(page, "controller_p_value", "Controller P Value", String(p_Controller_->Kp), 12);
-  addParam(page, "opening_time", "Mininum valve open time [ms]", String(p_Controller_->min_open_time), 12);
-  addParam(page, "dead_zone", "Dead Zone [bar]", String(p_Controller_->dead_zone), 12);
-  addParam(page, "cycle_time", "Cycle Time [ms]", String(p_Controller_->cycle_time), 12);
-  addList(page, "pressure_source", "Pressure Source", p_Controller_->compressed_gas_bottle, {
-    {0, "Fermentation"},
-    {1, "CO2 Gas Bottle"}
+  genConfigPage(page, { 
+    "tempscale", 
+    "setpoint_carb", 
+    "setpoint", 
+    "controller_p_value", 
+    "opening_time", 
+    "dead_zone", 
+    "cycle_time", 
+    "pressure_source"
   });
 
-  page += FPSTR(HTTP_FORM_END);
   page += FPSTR(HTTP_END);
 
   server->send(200, "text/html", page);
@@ -683,8 +946,39 @@ void Webserver::handleWifiSave()
   connect = true; //signal ready to connect/reset
 }
 
+/*
+struct argSaveFunc {
+  String arg;
+  std::function<void(const String& arg)> func;
+};
+*/
+
 void Webserver::handleConfigSave()
 {
+  for (uint8_t i = 0; i < server->args(); i++) {
+    auto it = parameters.find(server->argName(i));
+    if (it != parameters.end()) {
+      it->second.saveValue(server->arg(i));
+    }
+  }
+
+  String page = FPSTR(HTTP_HEAD);
+  page.replace("{v}", "Config Saved");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+  page += FPSTR(HTTP_SAVED);
+  page.replace("{v}", _apName);
+  page.replace("{x}", _ssid);
+  page += FPSTR(HTTP_END);
+
+  saveConfig();
+  FRAM.write_basic_config(p_Basic_config_, basic_config_offset);
+
+  // TODO: eManometer neustarten
+
+  server->send(200, "text/html", page);
 
 }
 

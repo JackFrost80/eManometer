@@ -22,6 +22,7 @@ MCP3221_Base::MCP3221_Base(uint8_t address)
 
 void MCP3221_Base::MCP3221_init()
 {
+    #if 0
     pinMode(D1,INPUT);
     digitalWrite(D1,0);
     for(uint8 i =0;i<18;i++)
@@ -36,6 +37,7 @@ void MCP3221_Base::MCP3221_init()
     Wire.begin(D2, D1);
     Wire.setClock(100000);
     Wire.setClockStretchLimit(2 * 230);
+    #endif
     
 }
 

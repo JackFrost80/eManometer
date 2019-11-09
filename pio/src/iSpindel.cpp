@@ -106,9 +106,7 @@ uint32_t start_time = 0;
 
 Webserver* webserver;
 
-int detectTempSensor(const uint8_t pins[]);
-
-bool shouldSaveConfig = false;
+int detectTempSensor();
 
 FlashConfig g_flashConfig;
 
@@ -119,6 +117,47 @@ float  Temperatur, Pressure, carbondioxide;
 Webserver* wifiManager;
 
 //iGauge new Stuff 
+
+
+void i2cscan()
+{
+  byte error, address;
+  int nDevices;
+ 
+  Serial.println("Scanning...");
+ 
+  nDevices = 0;
+  for(address = 1; address < 127; address++ )
+  {
+    // The i2c_scanner uses the return value of
+    // the Write.endTransmisstion to see if
+    // a device did acknowledge to the address.
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+ 
+    if (error == 0)
+    {
+      Serial.print("I2C device found at address 0x");
+      if (address<16)
+        Serial.print("0");
+      Serial.print(address,HEX);
+      Serial.println("  !");
+ 
+      nDevices++;
+    }
+    else if (error==4)
+    {
+      Serial.print("Unknown error at address 0x");
+      if (address<16)
+        Serial.print("0");
+      Serial.println(address,HEX);
+    }    
+  }
+  if (nDevices == 0)
+    Serial.println("No I2C devices found\n");
+  else
+    Serial.println("done\n");
+}
 
 void i2c_reset_and_init()
 {
@@ -297,12 +336,6 @@ String tempScaleLabel(void)
   return TempLabelsShort[g_flashConfig.my_tempscale];
 }
 
-// callback notifying us of the need to save config
-void saveConfigCallback()
-{
-  shouldSaveConfig = true;
-}
-
 bool readConfig()
 {
   CONSOLE(F("mounting FS..."));
@@ -328,11 +361,11 @@ bool readConfig()
         if (!error)
         {
           if (doc.containsKey("Name"))
-            strcpy(g_flashConfig.my_name, doc["Name"]);
+            g_flashConfig.my_name = doc["Name"].as<String>();
           if (doc.containsKey("Token"))
-            strcpy(g_flashConfig.my_token, doc["Token"]);
+            g_flashConfig.my_token = doc["Token"].as<String>();
           if (doc.containsKey("Server"))
-            strcpy(g_flashConfig.my_server, doc["Server"]);
+            g_flashConfig.my_server = doc["Server"].as<String>();
           if (doc.containsKey("Sleep"))
             g_flashConfig.my_sleeptime = doc["Sleep"];
           if (doc.containsKey("API"))
@@ -340,25 +373,23 @@ bool readConfig()
           if (doc.containsKey("Port"))
             g_flashConfig.my_port = doc["Port"];
           if (doc.containsKey("URL"))
-            strcpy(g_flashConfig.my_url, doc["URL"]);
+            g_flashConfig.my_url = doc["URL"].as<String>();
           if (doc.containsKey("DB"))
-            strcpy(g_flashConfig.my_db, doc["DB"]);
+            g_flashConfig.my_db = doc["DB"].as<String>();
           if (doc.containsKey("Username"))
-            strcpy(g_flashConfig.my_username, doc["Username"]);
+            g_flashConfig.my_username = doc["Username"].as<String>();
           if (doc.containsKey("Password"))
-            strcpy(g_flashConfig.my_password, doc["Password"]);
+            g_flashConfig.my_password = doc["Password"].as<String>();
           if (doc.containsKey("Job"))
-            strcpy(g_flashConfig.my_job, doc["Job"]);
+            g_flashConfig.my_job = doc["Job"].as<String>();
           if (doc.containsKey("Instance"))
-            strcpy(g_flashConfig.my_instance, doc["Instance"]);
+            g_flashConfig.my_instance = doc["Instance"].as<String>();
           if (doc.containsKey("TS"))
             g_flashConfig.my_tempscale = (TempUnits) doc["TS"].as<uint8_t>();
-          if (doc.containsKey("OWpin"))
-            g_flashConfig.my_OWpin = doc["OWpin"];
           if (doc.containsKey("SSID"))
-            g_flashConfig.my_ssid = (const char *)doc["SSID"];
+            g_flashConfig.my_ssid = doc["SSID"].as<String>();
           if (doc.containsKey("PSK"))
-            g_flashConfig.my_psk = (const char *)doc["PSK"];
+            g_flashConfig.my_psk = doc["PSK"].as<String>();
           
 
           CONSOLELN(F("parsed config:"));
@@ -449,14 +480,6 @@ bool shouldStartConfig(bool validConf)
   }
 }
 
-void validateInput(const char *input, char *output)
-{
-  String tmp = input;
-  tmp.trim();
-  tmp.replace(' ', '_');
-  tmp.toCharArray(output, tmp.length() + 1);
-}
-
 String htmlencode(String str)
 {
   String encodedstr = "";
@@ -479,206 +502,6 @@ String htmlencode(String str)
   }
   return encodedstr;
 }
-
-#if 0
-bool startConfiguration()
-{
-  set_violet();
-  lcd_gotoxy(0,2,p_Basic_config_->type_of_display);
-  lcd_puts_invert("Konfig... 192.168.4.1");
-
-  Webserver wifiManager;
-
-  wifiManager.setConfigPortalTimeout(PORTALTIMEOUT);
-  wifiManager.setSaveConfigCallback(saveConfigCallback);
-  wifiManager.setBreakAfterConfig(true);
-
-  WiFiManagerParameter api_list(HTTP_API_LIST);
-  WiFiManagerParameter custom_api("selAPI", "selAPI", String(my_api).c_str(),
-                                  20, TYPE_HIDDEN, WFM_NO_LABEL);
-
-  WiFiManagerParameter custom_name("name", "iSpindel Name", htmlencode(my_name).c_str(),
-                                   TKIDSIZE * 2);
-  WiFiManagerParameter custom_sleep("sleep", "Update Interval (s)",
-                                    String(my_sleeptime).c_str(), 6, TYPE_NUMBER);
-  WiFiManagerParameter custom_token("token", "Token", htmlencode(my_token).c_str(),
-                                    TKIDSIZE * 2 * 2);
-  WiFiManagerParameter custom_server("server", "Server Address",
-                                     my_server, TKIDSIZE);
-  WiFiManagerParameter custom_port("port", "Server Port",
-                                   String(my_port).c_str(), TKIDSIZE,
-                                   TYPE_NUMBER);
-  WiFiManagerParameter custom_url("url", "Server URL", my_url, TKIDSIZE * 2);
-  WiFiManagerParameter custom_db("db", "InfluxDB db", my_db, TKIDSIZE);
-  WiFiManagerParameter custom_username("username", "Username", my_username, TKIDSIZE);
-  WiFiManagerParameter custom_password("password", "Password", my_password, TKIDSIZE);
-  WiFiManagerParameter custom_job("job", "Prometheus job", my_job, TKIDSIZE);
-  WiFiManagerParameter custom_instance("instance", "Prometheus instance", my_instance, TKIDSIZE);
-  
-  WiFiManagerParameter tempscale_list(HTTP_TEMPSCALE_LIST);
-  WiFiManagerParameter custom_tempscale("tempscale", "tempscale",
-                                        String(my_tempscale).c_str(),
-                                        5, TYPE_HIDDEN, WFM_NO_LABEL);
-
-  wifiManager.addParameter(&custom_name);
-  wifiManager.addParameter(&custom_sleep);
- 
-
-  WiFiManagerParameter custom_tempscale_hint("<label for=\"TS\">Unit of temperature</label>");
-  wifiManager.addParameter(&custom_tempscale_hint);
-  wifiManager.addParameter(&tempscale_list);
-  wifiManager.addParameter(&custom_tempscale);
-  WiFiManagerParameter custom_api_hint("<hr><label for=\"API\">Service Type</label>");
-  wifiManager.addParameter(&custom_api_hint);
-
-  wifiManager.addParameter(&api_list);
-  wifiManager.addParameter(&custom_api);
-
-  wifiManager.addParameter(&custom_token);
-  wifiManager.addParameter(&custom_server);
-  wifiManager.addParameter(&custom_port);
-  wifiManager.addParameter(&custom_url);
-  wifiManager.addParameter(&custom_db);
-  wifiManager.addParameter(&custom_username);
-  wifiManager.addParameter(&custom_password);
-  wifiManager.addParameter(&custom_job);
-  wifiManager.addParameter(&custom_instance);
-  
-
-  CONSOLELN(F("started Portal"));
-  wifiManager.startConfigPortal("iSpindel");
-
-  validateInput(custom_name.getValue(), g_flashConfig.my_name);
-  validateInput(custom_token.getValue(), g_flashConfig.my_token);
-  validateInput(custom_server.getValue(), g_flashConfig.my_server);
-  validateInput(custom_db.getValue(), g_flashConfig.my_db);
-  validateInput(custom_username.getValue(), g_flashConfig.my_username);
-  validateInput(custom_password.getValue(), g_flashConfig.my_password);
-  validateInput(custom_job.getValue(), g_flashConfig.my_job);
-  validateInput(custom_instance.getValue(), g_flashConfig.my_instance);
-  g_flashConfig.my_sleeptime = String(custom_sleep.getValue()).toInt();
-
-  g_flashConfig.my_api = String(custom_api.getValue()).toInt();
-  g_flashConfig.my_port = String(custom_port.getValue()).toInt();
-  g_flashConfig.my_tempscale = String(custom_tempscale.getValue()).toInt();
-  validateInput(custom_url.getValue(), my_url);
-
-  
- 
-
-  // save the custom parameters to FS
-  if (shouldSaveConfig)
-  {
-    // Wifi config
-    WiFi.setAutoConnect(true);
-    WiFi.setAutoReconnect(true);
-
-    return saveConfig();
-  }
-  return false;
-}
-#endif
-
-#if 0
-bool startConfigurationNormal()
-{
-
-  wifiManager = new Webserver();
-  
-  wifiManager->setConfigPortalTimeout(PORTALTIMEOUT);
-  wifiManager->setSaveConfigCallback(saveConfigCallback);
-  wifiManager->setBreakAfterConfig(true);
-
-  WiFiManagerParameter api_list(HTTP_API_LIST);
-  WiFiManagerParameter custom_api("selAPI", "selAPI", String(my_api).c_str(),
-                                  20, TYPE_HIDDEN, WFM_NO_LABEL);
-
-  WiFiManagerParameter custom_name("name", "iSpindel Name", htmlencode(my_name).c_str(),
-                                   TKIDSIZE * 2);
-  WiFiManagerParameter custom_sleep("sleep", "Update Interval (s)",
-                                    String(my_sleeptime).c_str(), 6, TYPE_NUMBER);
-  WiFiManagerParameter custom_token("token", "Token", htmlencode(my_token).c_str(),
-                                    TKIDSIZE * 2 * 2);
-  WiFiManagerParameter custom_server("server", "Server Address",
-                                     my_server, TKIDSIZE);
-  WiFiManagerParameter custom_port("port", "Server Port",
-                                   String(my_port).c_str(), TKIDSIZE,
-                                   TYPE_NUMBER);
-  WiFiManagerParameter custom_url("url", "Server URL", my_url, TKIDSIZE * 2);
-  WiFiManagerParameter custom_db("db", "InfluxDB db", my_db, TKIDSIZE);
-  WiFiManagerParameter custom_username("username", "Username", my_username, TKIDSIZE);
-  WiFiManagerParameter custom_password("password", "Password", my_password, TKIDSIZE);
-  WiFiManagerParameter custom_job("job", "Prometheus job", my_job, TKIDSIZE);
-  WiFiManagerParameter custom_instance("instance", "Prometheus instance", my_instance, TKIDSIZE);
-  
-  WiFiManagerParameter tempscale_list(HTTP_TEMPSCALE_LIST);
-  WiFiManagerParameter custom_tempscale("tempscale", "tempscale",
-                                        String(my_tempscale).c_str(),
-                                        5, TYPE_HIDDEN, WFM_NO_LABEL);
-
-  wifiManager->addParameter(&custom_name);
-  wifiManager->addParameter(&custom_sleep);
-  
-
-  WiFiManagerParameter custom_tempscale_hint("<label for=\"TS\">Unit of temperature</label>");
-  wifiManager->addParameter(&custom_tempscale_hint);
-  wifiManager->addParameter(&tempscale_list);
-  wifiManager->addParameter(&custom_tempscale);
-  WiFiManagerParameter custom_api_hint("<hr><label for=\"API\">Service Type</label>");
-  wifiManager->addParameter(&custom_api_hint);
-
-  wifiManager->addParameter(&api_list);
-  wifiManager->addParameter(&custom_api);
-
-  wifiManager->addParameter(&custom_token);
-  wifiManager->addParameter(&custom_server);
-  wifiManager->addParameter(&custom_port);
-  wifiManager->addParameter(&custom_url);
-  wifiManager->addParameter(&custom_db);
-  wifiManager->addParameter(&custom_username);
-  wifiManager->addParameter(&custom_password);
-  wifiManager->addParameter(&custom_job);
-  wifiManager->addParameter(&custom_instance);
-  
-  wifiManager->setConfSSID(htmlencode(my_ssid));
-  wifiManager->setConfPSK(htmlencode(my_psk));
-
-  CONSOLELN(F("started Portal"));
-  wifiManager->startWebserver();
-
-  
-#if 0
-  validateInput(custom_name.getValue(), my_name);
-  validateInput(custom_token.getValue(), my_token);
-  validateInput(custom_server.getValue(), my_server);
-  validateInput(custom_db.getValue(), my_db);
-  validateInput(custom_username.getValue(), my_username);
-  validateInput(custom_password.getValue(), my_password);
-  validateInput(custom_job.getValue(), my_job);
-  validateInput(custom_instance.getValue(), my_instance);
-  my_sleeptime = String(custom_sleep.getValue()).toInt();
-
-  my_api = String(custom_api.getValue()).toInt();
-  my_port = String(custom_port.getValue()).toInt();
-  my_tempscale = String(custom_tempscale.getValue()).toInt();
-  validateInput(custom_url.getValue(), my_url);
-
-    
-  // save the custom parameters to FS
-  if (shouldSaveConfig)
-  {
-    // Wifi config
-    WiFi.setAutoConnect(true);
-    WiFi.setAutoReconnect(true);
-
-    return saveConfig();
-  }
-#endif
-
-  return false;
-}
-#endif
-
 
 void formatSpiffs()
 {
@@ -713,9 +536,7 @@ bool saveConfig()
   doc["Password"] = g_flashConfig.my_password;
   doc["Job"] = g_flashConfig.my_job;
   doc["Instance"] = g_flashConfig.my_instance;
-  
   doc["TS"] = (uint8_t) g_flashConfig.my_tempscale;
-  doc["OWpin"] = g_flashConfig.my_OWpin;
 
   // Store current Wifi credentials
   doc["SSID"] = WiFi.SSID();
@@ -889,27 +710,25 @@ void requestTemp()
 
 void initDS18B20()
 {
-  if (g_flashConfig.my_OWpin == -1)
+  int owPin = detectTempSensor();
+  if (owPin == -1)
   {
-    g_flashConfig.my_OWpin = detectTempSensor(OW_PINS);
-    if (g_flashConfig.my_OWpin == -1)
-    {
-      CONSOLELN(F("ERROR: cannot find a OneWire Temperature Sensor!"));
-      return;
-    }
+    CONSOLELN(F("ERROR: cannot find a OneWire Temperature Sensor!"));
+    return;
   }
-  pinMode(g_flashConfig.my_OWpin, OUTPUT);
-  digitalWrite(g_flashConfig.my_OWpin, LOW);
+
+  pinMode(ONE_WIRE_BUS, OUTPUT);
+  digitalWrite(ONE_WIRE_BUS, LOW);
   delay(100);
-  oneWire = new OneWire(g_flashConfig.my_OWpin);
+  oneWire = new OneWire(ONE_WIRE_BUS);
   DS18B20 = DallasTemperature(oneWire);
   DS18B20.begin();
 
   bool device = DS18B20.getAddress(tempDeviceAddress, 0);
   if (!device)
   {
-    g_flashConfig.my_OWpin = detectTempSensor(OW_PINS);
-    if (g_flashConfig.my_OWpin == -1)
+    owPin = detectTempSensor();
+    if (owPin == -1)
     {
       CONSOLELN(F("ERROR: cannot find a OneWire Temperature Sensor!"));
       return;
@@ -917,7 +736,7 @@ void initDS18B20()
     else
     {
       delete oneWire;
-      oneWire = new OneWire(g_flashConfig.my_OWpin);
+      oneWire = new OneWire(ONE_WIRE_BUS);
       DS18B20 = DallasTemperature(oneWire);
       DS18B20.begin();
       DS18B20.getAddress(tempDeviceAddress, 0);
@@ -954,8 +773,8 @@ float getTemperature(bool block = false)
       t == 85.0)                    // we read 85 uninitialized
   {
     CONSOLELN(F("ERROR: OW DISCONNECTED"));
-    pinMode(g_flashConfig.my_OWpin, OUTPUT);
-    digitalWrite(g_flashConfig.my_OWpin, LOW);
+    pinMode(ONE_WIRE_BUS, OUTPUT);
+    digitalWrite(ONE_WIRE_BUS, LOW);
     delay(100);
     oneWire->reset();
 
@@ -968,116 +787,110 @@ float getTemperature(bool block = false)
   return t;
 }
 
-int detectTempSensor(const uint8_t pins[])
+int detectTempSensor()
 {
+  byte i;
+  byte present = 0;
+  byte type_s;
+  byte data[12];
+  byte addr[8];
+  float celsius;
 
-  for (uint8_t p = 0; p < sizeof(pins); p++)
+  CONSOLE(F("scanning for OW device on pin: "));
+  CONSOLELN(ONE_WIRE_BUS);
+  OneWire ds(ONE_WIRE_BUS);
+
+  if (!ds.search(addr))
   {
-    const byte pin = pins[p];
-    byte i;
-    byte present = 0;
-    byte type_s;
-    byte data[12];
-    byte addr[8];
-    float celsius;
-
-    CONSOLE(F("scanning for OW device on pin: "));
-    CONSOLELN(pin);
-    OneWire ds(pin);
-
-    if (!ds.search(addr))
-    {
-      CONSOLELN(F("No devices found!"));
-      ds.reset_search();
-      delay(250);
-      continue;
-    }
-
-    CONSOLE("Found device with ROM =");
-    for (i = 0; i < 8; i++)
-    {
-      CONSOLE(' ');
-      CONSOLE(addr[i], HEX);
-    }
-
-    if (OneWire::crc8(addr, 7) != addr[7])
-    {
-      CONSOLELN(" CRC is not valid!");
-      continue;
-    }
-    CONSOLELN();
-
-    // the first ROM byte indicates which chip
-    switch (addr[0])
-    {
-    case 0x10:
-      CONSOLELN("  Chip = DS18S20"); // or old DS1820
-      type_s = 1;
-      break;
-    case 0x28:
-      CONSOLELN("  Chip = DS18B20");
-      type_s = 0;
-      break;
-    case 0x22:
-      CONSOLELN("  Chip = DS1822");
-      type_s = 0;
-      break;
-    default:
-      CONSOLELN("Device is not a DS18x20 family device.");
-      continue;
-    }
-
-    ds.reset();
-    ds.select(addr);
-    ds.write(0x44, 1); // start conversion, with parasite power on at the end
-
-    delay(900); // maybe 750ms is enough, maybe not
-    present = ds.reset();
-    ds.select(addr);
-    ds.write(0xBE); // Read Scratchpad
-
-    CONSOLE("  Data = ");
-    CONSOLE(present, HEX);
-    CONSOLE(" ");
-    for (i = 0; i < 9; i++)
-    { // we need 9 bytes
-      data[i] = ds.read();
-      CONSOLE(data[i], HEX);
-      CONSOLE(" ");
-    }
-    CONSOLE(" CRC=");
-    CONSOLELN(OneWire::crc8(data, 8), HEX);
-
-    // Convert the data to actual temperature
-    int16_t raw = (data[1] << 8) | data[0];
-    if (type_s)
-    {
-      raw = raw << 3; // 9 bit resolution default
-      if (data[7] == 0x10)
-      {
-        // "count remain" gives full 12 bit resolution
-        raw = (raw & 0xFFF0) + 12 - data[6];
-      }
-    }
-    else
-    {
-      byte cfg = (data[4] & 0x60);
-      // at lower res, the low bits are undefined, so let's zero them
-      if (cfg == 0x00)
-        raw = raw & ~7; // 9 bit resolution, 93.75 ms
-      else if (cfg == 0x20)
-        raw = raw & ~3; // 10 bit res, 187.5 ms
-      else if (cfg == 0x40)
-        raw = raw & ~1; // 11 bit res, 375 ms
-      //// default is 12 bit resolution, 750 ms conversion time
-    }
-    celsius = (float)raw / 16.0;
-    CONSOLE(F("  Temperature = "));
-    CONSOLE(celsius);
-    CONSOLELN(F(" Celsius, "));
-    return pin;
+    CONSOLELN(F("No devices found!"));
+    ds.reset_search();
+    delay(250);
+    return -1;
   }
-  return -1;
+
+  CONSOLE("Found device with ROM =");
+  for (i = 0; i < 8; i++)
+  {
+    CONSOLE(' ');
+    CONSOLE(addr[i], HEX);
+  }
+
+  if (OneWire::crc8(addr, 7) != addr[7])
+  {
+    CONSOLELN(" CRC is not valid!");
+    return -1;
+  }
+  CONSOLELN();
+
+  // the first ROM byte indicates which chip
+  switch (addr[0])
+  {
+  case 0x10:
+    CONSOLELN("  Chip = DS18S20"); // or old DS1820
+    type_s = 1;
+    break;
+  case 0x28:
+    CONSOLELN("  Chip = DS18B20");
+    type_s = 0;
+    break;
+  case 0x22:
+    CONSOLELN("  Chip = DS1822");
+    type_s = 0;
+    break;
+  default:
+    CONSOLELN("Device is not a DS18x20 family device.");
+    return -1;
+  }
+
+  ds.reset();
+  ds.select(addr);
+  ds.write(0x44, 1); // start conversion, with parasite power on at the end
+
+  delay(900); // maybe 750ms is enough, maybe not
+  present = ds.reset();
+  ds.select(addr);
+  ds.write(0xBE); // Read Scratchpad
+
+  CONSOLE("  Data = ");
+  CONSOLE(present, HEX);
+  CONSOLE(" ");
+  for (i = 0; i < 9; i++)
+  { // we need 9 bytes
+    data[i] = ds.read();
+    CONSOLE(data[i], HEX);
+    CONSOLE(" ");
+  }
+  CONSOLE(" CRC=");
+  CONSOLELN(OneWire::crc8(data, 8), HEX);
+
+  // Convert the data to actual temperature
+  int16_t raw = (data[1] << 8) | data[0];
+  if (type_s)
+  {
+    raw = raw << 3; // 9 bit resolution default
+    if (data[7] == 0x10)
+    {
+      // "count remain" gives full 12 bit resolution
+      raw = (raw & 0xFFF0) + 12 - data[6];
+    }
+  }
+  else
+  {
+    byte cfg = (data[4] & 0x60);
+    // at lower res, the low bits are undefined, so let's zero them
+    if (cfg == 0x00)
+      raw = raw & ~7; // 9 bit resolution, 93.75 ms
+    else if (cfg == 0x20)
+      raw = raw & ~3; // 10 bit res, 187.5 ms
+    else if (cfg == 0x40)
+      raw = raw & ~1; // 11 bit res, 375 ms
+    //// default is 12 bit resolution, 750 ms conversion time
+  }
+  celsius = (float)raw / 16.0;
+  CONSOLE(F("  Temperature = "));
+  CONSOLE(celsius);
+  CONSOLELN(F(" Celsius, "));
+  return ONE_WIRE_BUS;
 }
 
 void connectBackupCredentials()
@@ -1209,16 +1022,19 @@ void setup_displayInit()
   //disp = new Display_SSD1306_Custom(p_Basic_config_->type_of_display);
   disp = new Display_Adafruit_SSD1306();
 
-  disp->init();
-  disp->clear();
-  disp_print_header();
-  disp->sync();
+  if (disp) {
+    disp->init();
+    disp->clear();
+    disp_print_header();
+    disp->sync();
+  }
 }
 
 void setup()
 {
   Serial.begin(115200);
   i2c_reset_and_init(); // Init I2C and Reset broken transmission.
+  i2cscan();
 
   setup_ledTest();
 
@@ -1336,183 +1152,6 @@ void loop()
   if (WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA) {
     return;
   }
-
-  #if 0
-  WiFiClient client = server.available();   // Listen for incoming clients
-
-  if (client) {                             // If a new client connects,
-    Serial.println("New Client.");          // print a message out in the serial port
-    String currentLine = "";                // make a String to hold incoming data from the client
-    currentTime = millis();
-    previousTime = currentTime;
-    while (client.connected() && currentTime - previousTime <= timeoutTime) { // loop while the client's connected
-      currentTime = millis();         
-      if (client.available()) {             // if there's bytes to read from the client,
-        char c = client.read();             // read a byte, then
-        Serial.write(c);                    // print it out the serial monitor
-        header += c;
-        if (c == '\n') {                    // if the byte is a newline character
-          // if the current line is blank, you got two newline characters in a row.
-          // that's the end of the client HTTP request, so send a response:
-          if (currentLine.length() == 0) {
-            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-            // and a content-type so the client knows what's coming, then a blank line:
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-type:text/html");
-            client.println("Connection: close");
-            client.println();
-            
-            // turns the GPIOs on and off
-                       
-            // Display the HTML web page
-            client.println("<!DOCTYPE html><html>");
-            client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-            client.println("<link rel=\"icon\" href=\"data:,\">");
-            // CSS to style the on/off buttons 
-            // Feel free to change the background-color and font-size attributes to fit your preferences
-            client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
-            client.println(".button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;");
-            client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
-            client.println(".button2 {background-color: #77878A;}</style></head>");
-            
-            // Web Page Heading
-            client.println("<body><h1>eManometer Web Server</h1>");
-            
-            // Display current state, and ON/OFF buttons for GPIO 5  
-            char helper[20];
-            //client.println(header);
-            String helper_get;
-            String Regler_string;
-            String Kp_string;
-            String min_open_time_string;
-            String dead_zone_string;
-            String cycle_time_string;
-            String compressed_gas_bottle_string;
-            String Type_of_Display_string;
-            sprintf((char *)&helper_get,"%.1f",(double) p_Controller_->setpoint_carbondioxide);
-            sprintf((char *)&Regler_string,"%.1f",(double) p_Controller_->Setpoint);
-            sprintf((char *)&Kp_string,"%.1f",(double) p_Controller_->Kp);
-            sprintf((char *)&min_open_time_string,"%.1f",(double) p_Controller_->min_open_time);
-            sprintf((char *)&dead_zone_string,"%.1f",(double) p_Controller_->dead_zone);
-            sprintf((char *)&cycle_time_string,"%.1f",(double) p_Controller_->cycle_time);
-            sprintf((char *)&compressed_gas_bottle_string,"%d",(int) p_Controller_->compressed_gas_bottle);
-            client.println("<p> Test " + helper_get + " g CO2/l</p>");
-            if(header.indexOf("GET /?name=") >=0)
-            {
-                int index = header.indexOf("&");
-                helper_get = header.substring(11,index); 
-                int index2 = header.indexOf("&",index+1);
-                Regler_string = header.substring(index+10,index2);
-                index = header.indexOf("&",index2+1);
-                Kp_string = header.substring(index2+4,index);
-                index2 = header.indexOf("&",index+1);
-                min_open_time_string = header.substring(index+9,index2);
-                index = header.indexOf("&",index2+1);
-                dead_zone_string = header.substring(index2+10,index);
-                index2 = header.indexOf("&",index+1);
-                cycle_time_string = header.substring(index+11,index2);
-                index = header.indexOf("&",index2+1);
-                compressed_gas_bottle_string = header.substring(index2+5,index);
-                index2 = header.indexOf("&",index+1);
-                Type_of_Display_string = header.substring(index+9,index2);
-                client.println("<p> Type of Display " + Type_of_Display_string + " </p>");
-
-                p_Controller_->setpoint_carbondioxide = helper_get.toDouble();
-                p_Controller_->Setpoint = Regler_string.toDouble();
-                p_Controller_->Kp = Kp_string.toDouble();
-                p_Controller_->min_open_time = min_open_time_string.toDouble();
-                p_Controller_->dead_zone = dead_zone_string.toDouble();
-                p_Controller_->cycle_time = cycle_time_string.toInt();
-                p_Controller_->compressed_gas_bottle = compressed_gas_bottle_string.toInt();
-                p_Basic_config_->type_of_display = Type_of_Display_string.toInt();
-                uint32_t calculated_crc = 0;
-                crc32_array((uint8_t *) p_Controller_,sizeof(controller_t)-4,&calculated_crc);
-                p_Controller_->crc32 = calculated_crc;
-                FRAM.write_controller_parameters(p_Controller_,Controller_paramter_offset);
-                crc32_array((uint8_t *) p_Basic_config_,sizeof(p_basic_config_t)-4,&calculated_crc);
-                p_Basic_config_->crc32 = calculated_crc;
-                FRAM.write_basic_config(p_Basic_config_,basic_config_offset);
-                init_LCD(p_Basic_config_->type_of_display); 
-                lcd_gotoxy(0,0,p_Basic_config_->type_of_display);
-                lcd_puts("eManometer ");
-                lcd_puts(FIRMWAREVERSION);
-
-
-            }
-            sprintf(helper,"%.2f",(double)Pressure);
-            output5State = helper,
-            client.println("<p> Druck " + output5State + " bar</p>");
-            // If the output5State is off, it displays the ON button       
-            sprintf(helper,"%.2f",(double)Temperatur);
-            output5State = helper,
-            // Display current state, and ON/OFF buttons for GPIO 4  
-            client.println("<p>Temperatur " + output5State + " °C</p>");
-            // If the output4State is off, it displays the ON button       
-            sprintf(helper,"%.2f",carbondioxide);
-            output5State = helper,
-            // Display current state, and ON/OFF buttons for GPIO 4  
-            client.println("<p>Karbonisierung " + output5State + " g CO2/l</p>");
-            // If the output4State is off, it displays the ON button  
-            sprintf(helper,"%.2f",p_Controller_->setpoint_carbondioxide);
-            output5State = helper,
-            // Display current state, and ON/OFF buttons for GPIO 4  
-            client.println("<p>Sollwert Karbonisierung " + output5State + " g CO2/l</p>");
-            sprintf(helper,"%.2f",p_Controller_->Setpoint);
-            output5State = helper,
-            // Display current state, and ON/OFF buttons for GPIO 4  
-            client.println("<p>Sollwert Regler " + output5State + " bar</p>");
-            // If the output4State is off, it displays the ON button  
-            client.println("<p><form action='/' method='get'>");
-            client.println("Sollwert Carbonisierung: <input type='text' id='name' name='name' value='" + helper_get + "'> g CO2/l</br>");
-            client.println("Sollwert Druck <input type='text' id='setpoint' name='setpoint' value='" + Regler_string + "'> bar </br>");
-            client.println("Regler Kp <input type='text' id='Kp' name='Kp' value='" + Kp_string + "'></br>");
-            client.println("Minimale öffnungszeit <input type='text' id='minopen' name='minopen' value='" + min_open_time_string + "'> ms </br>");
-            client.println("Dead Zone <input type='text' id='deadzone' name='deadzone' value='" + dead_zone_string + "'> bar </br>");
-            client.println("Zykluszeit <input type='text' id='cycletime' name='cycletime' value='" + cycle_time_string + "'> ms </br>");
-            client.println("CO2-Flasche <input type='text' id='gas' name='gas' value='" + compressed_gas_bottle_string + "'></br>");
-            String Display0 = "";
-            String Display1 = "";
-            String Display2 = "";
-            switch(p_Basic_config_->type_of_display)
-            {
-              case 0:
-              Display0="selected";
-              break;
-              case 1:
-              Display1="selected";
-              break;
-              case 2:
-              Display2="selected";
-              break;
-              default:
-              break;
-            }
-            client.println("<select name='Display'> <option value=0" + Display0 +  " >Kein Display</option><option value=1 " + Display1 +  " >SSD1306</option><option value=2 " + Display2 +  " >SH1106</option></select></br>");
-            client.println("<input type='hidden' name='UserBrowser' value=''>");
-            client.println("<input type='submit' value='Submit'>");
-            client.println("</form></p>");
-            client.println("</body></html>");
-            
-            // The HTTP response ends with another blank line
-            client.println();
-            // Break out of the while loop
-            break;
-          } else { // if you got a newline, then clear currentLine
-            currentLine = "";
-          }
-        } else if (c != '\r') {  // if you got anything else but a carriage return character,
-          currentLine += c;      // add it to the end of the currentLine
-        }
-      }
-    }
-    // Clear the header variable
-    header = "";
-    // Close the connection
-    client.stop();
-    Serial.println("Client disconnected.");
-    Serial.println("");
-  }
-#endif
   
   diff_time = millis() - start_time;
   if(diff_time >= interval_send_data)  // 60 sec send part
@@ -1533,6 +1172,7 @@ void loop()
     DSreqTime = millis();
    }
   uint16_t raw_data = ADC_.MCP3221_getdata();
+
   //uint16_t raw_value = raw_data;
     
     if(raw_data >= 0x100)
@@ -1588,35 +1228,39 @@ void loop()
   if (currentMillis - previousMillis >= interval) {
     // save the last time you blinked the LED
 
-    disp->clear();
-    disp->setLine(0);
-    disp_print_header();
+    if (disp) {
+      disp->clear();
+      disp->setLine(0);
+      disp_print_header();
+    }
   
     previousMillis = currentMillis;
     blink++;
-    disp->setLine(1);
-    disp->printf("Druck: %.2f bar  ", Pressure);
-    disp->setLine(2);
-    disp->printf("Temp: %.2f 'C", Temperatur);
-    disp->setLine(3);
-    disp->printf("CO2: %.2f g/l  ", carbondioxide);
-    disp->setLine(4);
-    disp->printf("Zeit: %.2f s", p_Statistic_->opening_time/1000);
-    disp->setLine(5);
-    disp->printf("Anzahl: %d", p_Statistic_->times_open);
-    disp->setLine(6);
-    if(p_Controller_->compressed_gas_bottle)
-    {
-      disp->setLine(7);
-      disp->print("CO2 Flasche");
-    }
-    else
-    {
-      disp->setLine(7);
-      disp->print("Gaerung       ");
-    }
+    if (disp) {
+      disp->setLine(1);
+      disp->printf("Druck: %.2f bar  ", Pressure);
+      disp->setLine(2);
+      disp->printf("Temp: %.2f 'C", Temperatur);
+      disp->setLine(3);
+      disp->printf("CO2: %.2f g/l  ", carbondioxide);
+      disp->setLine(4);
+      disp->printf("Zeit: %.2f s", p_Statistic_->opening_time/1000);
+      disp->setLine(5);
+      disp->printf("Anzahl: %d", p_Statistic_->times_open);
+      disp->setLine(6);
+      if(p_Controller_->compressed_gas_bottle)
+      {
+        disp->setLine(7);
+        disp->print("CO2 Flasche");
+      }
+      else
+      {
+        disp->setLine(7);
+        disp->print("Gaerung       ");
+      }
 
-    disp->sync();
+      disp->sync();
+    }
 
   }
 

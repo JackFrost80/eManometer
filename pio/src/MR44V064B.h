@@ -2,7 +2,41 @@
 #define _MR44V064B_H_
 
 #include <stdint.h>
-#include "Globals.h"
+
+typedef struct controller {
+	float Kp;
+    float Setpoint;
+    float dead_zone;
+    float min_open_time;
+    double setpoint_carbondioxide;
+	uint16_t cv;
+    uint16_t cycle_time;
+    uint16_t calc_time;
+    uint32_t open_time;
+    uint32_t close_time;
+    bool compressed_gas_bottle;
+    uint32_t crc32;
+} controller_t,*p_controller_t;
+
+typedef struct statistics {
+    float opening_time;
+    uint32_t times_open;
+    uint32_t crc32;
+}
+statistics_t,*p_statistics_t;
+
+typedef struct basic_config {
+    uint8_t type_of_display;
+    uint8_t use_regulator;
+    uint16_t zero_value_sensor;
+    uint16_t value_red;
+    float value_blue;
+    float value_turkis;
+    float value_green;
+    double faktor_pressure;
+    uint32_t crc32;
+}
+basic_config_t,*p_basic_config_t;
 
 #define FRAM_adress 0x50   // 7 Byte address 
 #define Controller_paramter_offset 0x00 
