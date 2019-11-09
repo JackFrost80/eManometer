@@ -46,12 +46,7 @@ const long interval = 250;           // interval at which to blink (milliseconds
 DisplayInterface* disp = nullptr;
 
 double setpoint_pressure = 0;
-controller_t Controller_;
-p_controller_t p_Controller_ = &Controller_;
-statistics_t Statistic_;
-p_statistics_t p_Statistic_ = &Statistic_;
-basic_config_t Basic_config_;
-p_basic_config_t p_Basic_config_= &Basic_config_; 
+
 uint32_t open = 0;
 uint32_t close = 0;
 uint32_t open_time = 0.0;

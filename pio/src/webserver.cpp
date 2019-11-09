@@ -125,6 +125,7 @@ boolean Webserver::startWebserver()
   /* Setup web pages: root, wifi config pages, SO captive portal detectors and not found. */
   server->on("/", std::bind(&Webserver::handleRoot, this));
   server->on("/wifi", std::bind(&Webserver::handleWifi, this));
+  server->on("/api", std::bind(&Webserver::handleAPIConfig, this));
   server->on("/config", std::bind(&Webserver::handleConfig, this));
   server->on("/wifisave", std::bind(&Webserver::handleWifiSave, this));
   server->on("/close", std::bind(&Webserver::handleServerClose, this));
@@ -533,19 +534,8 @@ struct ListItem {
   String name;
 };
 
-/** Wifi config page handler */
-void Webserver::handleConfig()
+static void addParam(String& page, String id, String label, String value, int len)
 {
-  header();
-  String page = FPSTR(HTTP_HEAD);
-  page.replace("{v}", "Config ESP");
-  page += FPSTR(HTTP_SCRIPT);
-  page += FPSTR(HTTP_STYLE);
-  page += _customHeadElement;
-  page += FPSTR(HTTP_HEAD_END);
-  page += F("<h2>eManometer Config</h2>");
-
-  auto addParam = [&page] (String id, String label, String value, int len) {
     String pitem;
     pitem = FPSTR(HTTP_FORM_LABEL);
     pitem += FPSTR(HTTP_FORM_PARAM);
@@ -560,9 +550,10 @@ void Webserver::handleConfig()
     pitem.replace("{v}", value);
 
     page += pitem;
-  };
+}
 
-  auto addList = [&page] (String id, String label, int value, std::vector<ListItem> items) {
+static void addList(String& page, String id, String label, int value, std::vector<ListItem> items)
+{
     String pitem;
     pitem = FPSTR(HTTP_FORM_LABEL);
     pitem += FPSTR(HTTP_FORM_LIST);
@@ -579,9 +570,10 @@ void Webserver::handleConfig()
     pitem += "</select>";
 
     page += pitem;
-  };
+}
 
-  auto addList2 = [&page] (String id, String label, int value, const std::vector<String>& items) {
+static void addList(String& page, String id, String label, int value, const std::vector<String>& items)
+{
     String pitem;
     pitem = FPSTR(HTTP_FORM_LABEL);
     pitem += FPSTR(HTTP_FORM_LIST);
@@ -598,75 +590,62 @@ void Webserver::handleConfig()
     pitem += "</select>";
 
     page += pitem;
-  };
+}
+
+void Webserver::handleAPIConfig()
+{
+  header();
+  String page = FPSTR(HTTP_HEAD);
+  page.replace("{v}", "Remote Sender Config");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+  page += F("<h2>Remote Sender Config</h2>");
 
   // page += FPSTR(HTTP_FORM_START);
   page += F("<form method=\"get\" action=\"cs\">");
 
-  addParam("name", "Name", g_flashConfig.my_name, 128);
-  addParam("interval", "Update Interval", String(g_flashConfig.my_sleeptime), 12);
-  addList2("tempscale", "Temperature Unit", g_flashConfig.my_tempscale, TempLabels);
-  /*
-  addList("tempscale", "Temperature Unit", g_flashConfig.my_tempscale, {
-    {0, "Celcius"},
-    {1, "Fahrenheit"},
-    {2, "Kelvin"}
-  });
-  */
-
-#if 0
-  char parLength[2];
-  // add the extra parameters to the form
-  for (int i = 0; i < _paramsCount; i++)
-  {
-    if (_params[i] == NULL)
-    {
-      break;
-    }
-
-    String pitem;
-    switch (_params[i]->getLabelPlacement())
-    {
-    case WFM_LABEL_BEFORE:
-      pitem = FPSTR(HTTP_FORM_LABEL);
-      pitem += FPSTR(HTTP_FORM_PARAM);
-      break;
-    case WFM_LABEL_AFTER:
-      pitem = FPSTR(HTTP_FORM_PARAM);
-      pitem += FPSTR(HTTP_FORM_LABEL);
-      break;
-    default:
-      // WFM_NO_LABEL
-      pitem = FPSTR(HTTP_FORM_PARAM);
-      break;
-    }
-
-    String customHTML = reinterpret_cast<const __FlashStringHelper *>(_params[i]->getCustomHTML());
-    if (_params[i]->getID() != NULL)
-    {
-      pitem.replace("{i}", _params[i]->getID());
-      pitem.replace("{n}", _params[i]->getID());
-      pitem.replace("{p}", _params[i]->getPlaceholder());
-      snprintf(parLength, 2, "%d", _params[i]->getValueLength());
-      pitem.replace("{l}", parLength);
-      pitem.replace("{v}", _params[i]->getValue());
-      pitem.replace("{c}", customHTML);
-    }
-    else
-    {
-      pitem = customHTML;
-    }
-
-    page += pitem;
-  }
-  if (_params[0] != NULL)
-  {
-    page += "<br/>";
-  }
-#endif
+  addParam(page, "name", "Name", g_flashConfig.my_name, 128);
+  addParam(page, "interval", "Update Interval", String(g_flashConfig.my_sleeptime), 12);
+  addList(page, "tempscale", "Temperature Unit", g_flashConfig.my_tempscale, TempLabels);
+  addList(page, "api", "API", g_flashConfig.my_api, RemoteAPILabels);
 
   page += FPSTR(HTTP_FORM_END);
+  page += FPSTR(HTTP_END);
 
+  server->send(200, "text/html", page);
+
+  DEBUG_WM(F("Sent config page"));
+}
+
+/** Wifi config page handler */
+void Webserver::handleConfig()
+{
+  header();
+  String page = FPSTR(HTTP_HEAD);
+  page.replace("{v}", "eManometer Config");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+  page += F("<h2>eManometer Config</h2>");
+
+  // page += FPSTR(HTTP_FORM_START);
+  page += F("<form method=\"get\" action=\"cs\">");
+
+  addParam(page, "setpoint_carb", "Target Carbonation [g/l]", String(p_Controller_->setpoint_carbondioxide), 12);
+  addParam(page, "setpoint", "Target Pressure [bar]", String(p_Controller_->Setpoint), 12);
+  addParam(page, "controller_p_value", "Controller P Value", String(p_Controller_->Kp), 12);
+  addParam(page, "opening_time", "Mininum valve open time [ms]", String(p_Controller_->min_open_time), 12);
+  addParam(page, "dead_zone", "Dead Zone [bar]", String(p_Controller_->dead_zone), 12);
+  addParam(page, "cycle_time", "Cycle Time [ms]", String(p_Controller_->cycle_time), 12);
+  addList(page, "pressure_source", "Pressure Source", p_Controller_->compressed_gas_bottle, {
+    {0, "Fermentation"},
+    {1, "CO2 Gas Bottle"}
+  });
+
+  page += FPSTR(HTTP_FORM_END);
   page += FPSTR(HTTP_END);
 
   server->send(200, "text/html", page);

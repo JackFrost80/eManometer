@@ -278,6 +278,7 @@ private:
   void handleRoot();
   void handleWifi();
   void handleConfig();
+  void handleAPIConfig();
   void handleWifiSave();
   void handleServerClose();
   void handleInfo();

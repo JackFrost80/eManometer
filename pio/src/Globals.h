@@ -72,6 +72,8 @@ enum RemoteAPI {
     API_MQTT = 8
 };
 
+extern std::vector<String> RemoteAPILabels;
+
 #define DTMQTT 10
 
 // Number of seconds after reset during which a
@@ -173,5 +175,12 @@ struct FlashConfig {
 };
 
 extern FlashConfig g_flashConfig;
+
+extern controller_t Controller_;
+extern p_controller_t p_Controller_;
+extern statistics_t Statistic_;
+extern p_statistics_t p_Statistic_;
+extern basic_config_t Basic_config_;
+extern p_basic_config_t p_Basic_config_; 
 
 #endif
