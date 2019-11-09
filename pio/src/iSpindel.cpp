@@ -32,6 +32,7 @@ All rights reserverd by S.Lang <universam@web.de>
 #include "display_adafruit_ssd1306.h"
 #include "display_ssd1306_custom.h"
 #include "timer.h"
+#include "Sender.h"
 
 #include <list>
 // !DEBUG 1
@@ -849,7 +850,7 @@ bool forwardGeneric()
     sender.add("RSSI", WiFi.RSSI());
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
-    
+
     switch(g_flashConfig.my_api) {
       case API_HTTP:
         return sender.sendGenericPost(g_flashConfig.my_server, g_flashConfig.my_url, g_flashConfig.my_port);
