@@ -117,7 +117,20 @@ enum TempUnits {
 extern const std::vector<String> TempLabelsShort;
 extern const std::vector<String> TempLabels;
 
+enum eManometerMode {
+    ModeBottleGauge,
+    ModeSpundingValve,
+};
+
+enum DisplayType {
+    DisplayOff,
+    DiplaySSD1306,
+    DisplaySH1106
+};
+
 struct FlashConfig {
+  eManometerMode mode;
+  DisplayType display;
   String token;
   String name = "eManometer000";
   String server;

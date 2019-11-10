@@ -26,7 +26,6 @@ typedef struct statistics {
 statistics_t,*p_statistics_t;
 
 typedef struct basic_config {
-    uint8_t type_of_display;
     uint8_t use_regulator;
     uint16_t zero_value_sensor;
     uint16_t value_red;

@@ -38,10 +38,6 @@ All rights reserverd by S.Lang <universam@web.de>
 
 timer_mgr g_timer_mgr;
 
-// iGauge new stuff
-unsigned long previousMillis = 0;        // will store last time LED was updated
-const long interval = 250;           // interval at which to blink (milliseconds)
-
 DisplayInterface* disp = nullptr;
 
 uint32_t open = 0;
@@ -86,7 +82,7 @@ MCP3221_Base ADC_;
 OneWire *oneWire;
 DallasTemperature DS18B20;
 MR44V064B_Base FRAM; 
-DeviceAddress tempDeviceAddress;
+
 DoubleResetDetector drd(DRD_TIMEOUT, DRD_ADDRESS);
 
 Webserver* webserver;
@@ -370,10 +366,12 @@ bool readConfig()
             g_flashConfig.ssid = doc["SSID"].as<String>();
           if (doc.containsKey("PSK"))
             g_flashConfig.psk = doc["PSK"].as<String>();
-          
-
-          CONSOLELN(F("parsed config:"));
+          if (doc.containsKey("Mode"))
+            g_flashConfig.mode = (eManometerMode) doc["Mode"].as<uint8_t>();
+          if (doc.containsKey("Display"))
+            g_flashConfig.display = (DisplayType) doc["Display"].as<uint8_t>();
 #ifdef DEBUG
+          CONSOLELN(F("parsed config:"));
           serializeJson(doc, Serial);
           CONSOLELN();
 #endif
@@ -398,14 +396,6 @@ bool readConfig()
 
 bool shouldStartConfig(bool validConf)
 {
-
-  // we make sure that configuration is properly set and we are not woken by
-  // RESET button
-  // ensure this was called
-
-  rst_info *_reset_info = ESP.getResetInfoPtr();
-  uint8_t _reset_reason = _reset_info->reason;
-
   // The ESP reset info is sill buggy. see http://www.esp8266.com/viewtopic.php?f=32&t=8411
   // The reset reason is "5" (woken from deep-sleep) in most cases (also after a power-cycle)
   // I added a single reset detection as workaround to enter the config-mode easier
@@ -521,8 +511,8 @@ bool saveConfig()
   doc["SSID"] = WiFi.SSID();
   doc["PSK"] = WiFi.psk();
 
- 
-  
+  doc["Mode"] = (int) g_flashConfig.mode;
+  doc["Display"] = (int) g_flashConfig.display;
 
   File configFile = SPIFFS.open(CFGFILE, "w+");
   if (!configFile)
@@ -693,6 +683,8 @@ void requestTemp()
 
 void initDS18B20()
 {
+  DeviceAddress tempDeviceAddress;
+
   int owPin = detectTempSensor();
   if (owPin == -1)
   {
@@ -988,7 +980,6 @@ void setup_FRAM_init()
   if(p_Basic_config_->crc32 != calculated_crc)
   {
     p_Basic_config_->faktor_pressure = 0.0030517578125;
-    p_Basic_config_->type_of_display = 0;
     p_Basic_config_->use_regulator = 0;
     p_Basic_config_->value_blue = 0.6;
     p_Basic_config_->value_green = 1.05;
@@ -1002,8 +993,16 @@ void setup_FRAM_init()
 
 void setup_displayInit()
 {
-  //disp = new Display_SSD1306_Custom(p_Basic_config_->type_of_display);
-  disp = new Display_Adafruit_SSD1306();
+  switch (g_flashConfig.display) {
+    case DiplaySSD1306:
+      disp = new Display_Adafruit_SSD1306();
+      break;
+    case DisplaySH1106:
+      disp = new Display_SSD1306_Custom(2);
+      break;
+    default:
+      break;
+  }
 
   if (disp) {
     disp->init();
@@ -1024,10 +1023,6 @@ void setup()
   ADC_.MCP3221_init(); // Init I2C and Reset broken transmission.
 
   setup_FRAM_init();
-      
-  delay(500);
-
-  setup_displayInit();
 
   //Initialize Ticker every 0.5s
    // timer1_attachInterrupt(onTimerISR);
@@ -1038,12 +1033,13 @@ void setup()
 
   webserver = new Webserver();
   
-
   bool validConf = readConfig();
   if (!validConf)
     CONSOLELN(F("\nERROR config corrupted"));
   initDS18B20();
   
+  setup_displayInit();
+
   // decide whether we want configuration mode or normal mode
   if (shouldStartConfig(validConf)) {
     webserver->startWifiManager();
@@ -1052,9 +1048,6 @@ void setup()
     WiFi.mode(WIFI_STA);
   }
 
-  // to make sure we wake up with STA but AP
-  //WiFi.mode(WIFI_STA);
-    // we try to survive
   WiFi.setOutputPower(20.5);
 
   uint16_t raw_data = ADC_.MCP3221_getdata();
@@ -1069,17 +1062,6 @@ void setup()
   CONSOLELN(Temperatur);
   InitFloatAvg(&Temperature_filtered,Temperatur);
   InitFloatAvg(&pressure_filtered,Pressure);
-  // calc gravity on user defined polynominal
-  //Gravity = calculateGravity();
-  //CONSOLE(F("Gravity: "));
-  //CONSOLELN(Gravity);
-
-  // water anomaly correction
-  // float _temp = Temperatur - 4; // polynominal at 4
-  // float wfact = 0.00005759 * _temp * _temp * _temp - 0.00783198 * _temp * _temp - 0.00011688 * _temp + 999.97;
-  // corrGravity = Gravity - (1 - wfact / 1000);
-  // CONSOLE(F("\tcorrGravity: "));
-  // CONSOLELN(corrGravity);
 
   if (WiFi.status() != WL_CONNECTED)
   {
@@ -1115,14 +1097,6 @@ void setup()
   webserver->setConfPSK(htmlencode(g_flashConfig.psk));
 
   webserver->startWebserver();
-
-  if (WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA) {
-    g_timer_mgr.create_timer(250, false, [](){
-      static int blink = 0;
-      digitalWrite(LED_BUILTIN, blink);
-      blink = !blink;
-    });
-  }
 }
 
 void loop()
@@ -1247,7 +1221,6 @@ void loop()
   unsigned long currentMillis = millis();
 
   if (currentMillis - next_calc >= p_Controller_->calc_time) {
-    CONSOLELN("calc time");
     next_calc = currentMillis;
     calc_valve_time(p_Controller_,&open,&close,&open_time,&close_time,Pressure);
   }

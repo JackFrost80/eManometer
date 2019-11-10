@@ -346,16 +346,31 @@ paramMap parameters = {
     }
   },
   {
-    "display",
+    "emanometer_mode",
     {
       [] (String& page) {
-        addList(page, "display", "Display Type", p_Basic_config_->type_of_display, {
-          {0, "SH1106"},
-          {1, "SSD1306"}
+        addList(page, "emanometer_mode", "eManometer Mode", (int) g_flashConfig.mode, {
+          {0, "Bottle Gauge"},
+          {1, "Spunding Valve"}
         });
       },
       [] (const String& arg) {
-        p_Basic_config_->type_of_display = arg.toInt();
+        g_flashConfig.mode = (eManometerMode) arg.toInt();
+      }
+    }
+  },
+  {
+    "display",
+    {
+      [] (String& page) {
+        addList(page, "display", "Display Type", (int) g_flashConfig.display, {
+          {0, "None"},
+          {1, "SSD1306"},
+          {2, "SH1106"}
+        });
+      },
+      [] (const String& arg) {
+        g_flashConfig.display = (DisplayType) arg.toInt();
       }
     }
   },
@@ -797,7 +812,7 @@ void Webserver::handleHWConfig()
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h2>Hardware Config</h2>");
 
-  genConfigPage(page, {"display"});
+  genConfigPage(page, {"emanometer_mode", "display"});
 
   page += FPSTR(HTTP_END);
 
