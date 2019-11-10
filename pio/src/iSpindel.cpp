@@ -950,6 +950,7 @@ void setup_FRAM_init()
   CONSOLELN(calculated_crc,HEX);
   if(calculated_crc != p_Controller_->crc32)
   {
+      CONSOLELN("FRAM Controller Config CRC mismatch..resetting to defaults");
       set_red();
       set_controller_inital_values(p_Controller_);
       crc32_array((uint8_t *) p_Controller_,sizeof(controller_t)-4,&calculated_crc);
@@ -970,6 +971,7 @@ void setup_FRAM_init()
   crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
   if(p_Statistic_->crc32 != calculated_crc)
   {
+    CONSOLELN("FRAM Basic Config CRC mismatch..resetting to defaults");
     p_Statistic_->opening_time = 0.0;
     p_Statistic_->times_open = 0;
     crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);

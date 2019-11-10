@@ -141,7 +141,7 @@ void lcd_clrscr(uint8_t display)
 			{
 				Wire.beginTransmission(OLED_Adress);
     			Wire.write(DATA_LCD);
-				for(uint8_t ji = 0;i<32;i++)  // Wire buffer 32 Byte
+				for(uint8_t i = 0;i<32;i++)  // Wire buffer 32 Byte
 				{
 					Wire.write(0x00); // Clear display
 				}

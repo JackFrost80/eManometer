@@ -550,6 +550,7 @@ void Webserver::resetSettings()
   delay(200);
   return;
 }
+
 void Webserver::setTimeout(unsigned long seconds)
 {
   setConfigPortalTimeout(seconds);
@@ -709,56 +710,7 @@ void Webserver::handleWifi()
   page += FPSTR(HTTP_FORM_START2);
   page += _pass;
   page += FPSTR(HTTP_FORM_START3);
-#if 0
-  char parLength[2];
-  // add the extra parameters to the form
-  for (int i = 0; i < _paramsCount; i++)
-  {
-    if (_params[i] == NULL)
-    {
-      break;
-    }
 
-    String pitem;
-    switch (_params[i]->getLabelPlacement())
-    {
-    case WFM_LABEL_BEFORE:
-      pitem = FPSTR(HTTP_FORM_LABEL);
-      pitem += FPSTR(HTTP_FORM_PARAM);
-      break;
-    case WFM_LABEL_AFTER:
-      pitem = FPSTR(HTTP_FORM_PARAM);
-      pitem += FPSTR(HTTP_FORM_LABEL);
-      break;
-    default:
-      // WFM_NO_LABEL
-      pitem = FPSTR(HTTP_FORM_PARAM);
-      break;
-    }
-
-    String customHTML = reinterpret_cast<const __FlashStringHelper *>(_params[i]->getCustomHTML());
-    if (_params[i]->getID() != NULL)
-    {
-      pitem.replace("{i}", _params[i]->getID());
-      pitem.replace("{n}", _params[i]->getID());
-      pitem.replace("{p}", _params[i]->getPlaceholder());
-      snprintf(parLength, 2, "%d", _params[i]->getValueLength());
-      pitem.replace("{l}", parLength);
-      pitem.replace("{v}", _params[i]->getValue());
-      pitem.replace("{c}", customHTML);
-    }
-    else
-    {
-      pitem = customHTML;
-    }
-
-    page += pitem;
-  }
-  if (_params[0] != NULL)
-  {
-    page += "<br/>";
-  }
-#endif
   if (_sta_static_ip)
   {
 
@@ -907,24 +859,6 @@ void Webserver::handleWifiSave()
   _ssid = server->arg("s").c_str();
   _pass = server->arg("p").c_str();
 
-#if 0
-  //parameters
-  for (int i = 0; i < _paramsCount; i++)
-  {
-    if (_params[i] == NULL)
-    {
-      break;
-    }
-    //read parameter
-    String value = server->arg(_params[i]->getID()).c_str();
-    //store it in array
-    value.toCharArray(_params[i]->_value, _params[i]->_length);
-    DEBUG_WM(F("Parameter"));
-    DEBUG_WM(_params[i]->getID());
-    DEBUG_WM(value);
-  }
-#endif
-
   if (server->arg("ip") != "")
   {
     DEBUG_WM(F("static ip"));
@@ -961,9 +895,106 @@ void Webserver::handleWifiSave()
 
   server->send(200, "text/html", page);
 
-  DEBUG_WM(F("Sent wifi save page"));
+  if (connectWifi(_ssid, _pass) != WL_CONNECTED) {
+    DEBUG_WM(F("Failed to connect."));
+    WiFi.mode(WIFI_AP); // Dual mode becomes flaky if not connected to a WiFi network.
+    // I think this might be because too much of the processor is being utilised
+    //trying to connect to the network.
+  }
+  else {
+    saveConfig();
+  }
+}
 
-  connect = true; //signal ready to connect/reset
+//Convenient for debugging but wasteful of program space.
+//Remove if short of space
+char *Webserver::getStatus(int status)
+{
+  switch (status)
+  {
+  case WL_IDLE_STATUS:
+    return "WL_IDLE_STATUS";
+  case WL_NO_SSID_AVAIL:
+    return "WL_NO_SSID_AVAIL";
+  case WL_CONNECTED:
+    return "WL_CONNECTED";
+  case WL_CONNECT_FAILED:
+    return "WL_CONNECT_FAILED";
+  case WL_DISCONNECTED:
+    return "WL_DISCONNECTED";
+  default:
+    return "UNKNOWN";
+  }
+}
+
+int Webserver::connectWifi(String ssid, String pass)
+{
+  DEBUG_WM(F("Connecting wifi with new parameters..."));
+  if (ssid != "")
+  {
+    resetSettings(); /*Disconnect from the network and wipe out old values
+	if no values were entered into form. If you don't do this
+    esp8266 will sometimes lock up when SSID or password is different to
+	the already stored values and device is in the process of trying to connect
+	to the network. Mostly it doesn't but occasionally it does.
+	*/
+    // check if we've got static_ip settings, if we do, use those.
+    if (_sta_static_ip)
+    {
+      DEBUG_WM(F("Custom STA IP/GW/Subnet"));
+      WiFi.config(_sta_static_ip, _sta_static_gw, _sta_static_sn);
+      DEBUG_WM(WiFi.localIP());
+    }
+
+    WiFi.mode(WIFI_STA);                    //It will start in station mode if it was previously in AP mode.
+    WiFi.begin(ssid.c_str(), pass.c_str()); // Start Wifi with new values.
+  }
+  else if (!WiFi.SSID())
+  {
+    DEBUG_WM(F("No saved credentials"));
+  }
+
+  int connRes = waitForConnectResult();
+  DEBUG_WM("Connection result: ");
+  DEBUG_WM(getStatus(connRes));
+  //not connected, WPS enabled, no pass - first attempt
+  return connRes;
+}
+
+uint8_t Webserver::waitForConnectResult()
+{
+  if (_connectTimeout == 0)
+  {
+    unsigned long startedAt = millis();
+    DEBUG_WM(F("After waiting..."));
+    int connRes = WiFi.waitForConnectResult();
+    float waited = (millis() - startedAt);
+    DEBUG_WM(waited / 1000);
+    DEBUG_WM(F("seconds"));
+    return connRes;
+  }
+  else
+  {
+    DEBUG_WM(F("Waiting for connection result with time out"));
+    unsigned long start = millis();
+    boolean keepConnecting = true;
+    uint8_t status;
+    while (keepConnecting)
+    {
+      status = WiFi.status();
+      if (millis() > start + _connectTimeout)
+      {
+        keepConnecting = false;
+        DEBUG_WM(F("Connection timed out"));
+      }
+      if (status == WL_CONNECTED || status == WL_CONNECT_FAILED)
+      {
+        keepConnecting = false;
+      }
+      delay(100);
+    }
+    return status;
+  }
 }
 
 void Webserver::handleConfigSave()
@@ -1338,6 +1369,7 @@ void Webserver::handleReset()
   WiFi.disconnect(true); // Wipe out WiFi credentials.
   resetSettings();
   formatSpiffs();
+  FRAM.reset_settings();
   ESP.reset();
   delay(2000);
 }

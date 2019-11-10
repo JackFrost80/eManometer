@@ -62,3 +62,15 @@ void MR44V064B_Base::read_basic_config(p_basic_config_t data,uint16_t adress)
     MR44V064B_Base::read_array((uint8_t *) data, adress, sizeof(basic_config_t));
 
 }
+
+void MR44V064B_Base::reset_settings()
+{
+    Wire.beginTransmission(FRAM_adress);
+    Wire.write(0);
+    Wire.write(0);
+    for(uint16_t i = 0; i < FRAM_CONFIG_SIZE; i++)
+    {
+        Wire.write(0);
+    }
+    Wire.endTransmission();
+}

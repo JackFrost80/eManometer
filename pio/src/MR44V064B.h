@@ -41,6 +41,9 @@ basic_config_t,*p_basic_config_t;
 #define Controller_paramter_offset 0x00 
 #define Statistics_offset sizeof(controller_t) + Controller_paramter_offset
 #define basic_config_offset sizeof(statistics_t) + Statistics_offset
+
+#define FRAM_CONFIG_SIZE (basic_config_offset + sizeof(basic_config_t))
+
 class MR44V064B_Base
 {
     public:
@@ -52,6 +55,7 @@ class MR44V064B_Base
     void read_statistics(p_statistics_t data,uint16_t adress);
     void write_basic_config(p_basic_config_t data,uint16_t adress);
     void read_basic_config(p_basic_config_t data,uint16_t adress);
+    void reset_settings();
 
 
 
