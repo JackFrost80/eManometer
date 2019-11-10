@@ -99,10 +99,6 @@ DallasTemperature DS18B20;
 MR44V064B_Base FRAM; 
 DeviceAddress tempDeviceAddress;
 DoubleResetDetector drd(DRD_TIMEOUT, DRD_ADDRESS);
-uint32_t diff_time = 0;
-uint32_t interval_send_data = 30000;
-uint32_t start_time = 0;
-
 
 Webserver* webserver;
 
@@ -609,7 +605,7 @@ bool forwardMQTT()
     sender.add("temp_units", tempScaleLabel());
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
-    sender.add("interval", interval_send_data);
+    sender.add("interval", g_flashConfig.sleeptime);
     sender.add("RSSI", WiFi.RSSI());
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
@@ -625,7 +621,7 @@ bool forwardInfluxDB()
     sender.add("temp_units", tempScaleLabel());
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
-    sender.add("interval", interval_send_data);
+    sender.add("interval", g_flashConfig.sleeptime);
     sender.add("RSSI", WiFi.RSSI());
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
@@ -641,7 +637,7 @@ bool forwardPrometheus()
     sender.add("temperature", Temperatur);
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
-    sender.add("interval", interval_send_data);
+    sender.add("interval", g_flashConfig.sleeptime);
     sender.add("RSSI", WiFi.RSSI());
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
@@ -662,7 +658,7 @@ bool forwardGeneric()
     sender.add("type","eManometer");
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
-    sender.add("interval", interval_send_data);
+    sender.add("interval", g_flashConfig.sleeptime);
     sender.add("RSSI", WiFi.RSSI());
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
@@ -677,11 +673,15 @@ bool forwardGeneric()
         return processResponse(response);
       }
     }
+
+  return false;
 }
 
 bool uploadData()
 {
   switch(g_flashConfig.api) {
+    case API_Off:
+      return true;
     case API_Ubidots:
       return forwardUbidots();
     case API_MQTT:
@@ -1127,7 +1127,6 @@ void setup()
     connectBackupCredentials();
     CONSOLELN(F("failed to connect"));
   }
-  start_time = millis();
 
   webserver->setConfSSID(htmlencode(g_flashConfig.ssid));
   webserver->setConfPSK(htmlencode(g_flashConfig.psk));
@@ -1145,6 +1144,9 @@ void setup()
 
 void loop()
 {
+  static timeout timer_apicall(g_flashConfig.sleeptime * 1000);
+  static timeout timer_display;
+
   webserver->process();
   g_timer_mgr.check_timers();
 
@@ -1152,15 +1154,13 @@ void loop()
   if (WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA) {
     return;
   }
-  
-  diff_time = millis() - start_time;
-  if(diff_time >= interval_send_data)  // 60 sec send part
-  {
-    
+
+
+  if (timer_expired(timer_apicall)) {
     //requestTemp();
     uploadData();
-    start_time = millis();
-
+    
+    set_timer(timer_apicall, g_flashConfig.sleeptime * 1000);
   }
 
   if(isDS18B20ready())
@@ -1223,9 +1223,7 @@ void loop()
     double exponent = -10.73797 + (2617.25 / ( Temperatur + 273.15 ));
     carbondioxide = (float)(((double)Pressure + 1.013) * 10 * exp(exponent));
 
-    unsigned long currentMillis = millis();
-
-  if (currentMillis - previousMillis >= interval) {
+    if (timer_expired(timer_display)) {
     // save the last time you blinked the LED
 
     if (disp) {
@@ -1233,8 +1231,7 @@ void loop()
       disp->setLine(0);
       disp_print_header();
     }
-  
-    previousMillis = currentMillis;
+
     blink++;
     if (disp) {
       disp->setLine(1);
@@ -1262,7 +1259,10 @@ void loop()
       disp->sync();
     }
 
+    set_timer(timer_display, 250);
   }
+
+  unsigned long currentMillis = millis();
 
   if (currentMillis - next_calc >= p_Controller_->calc_time) {
     next_calc = currentMillis;

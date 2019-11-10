@@ -965,18 +965,18 @@ void Webserver::handleConfigSave()
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
+  page += F("<META HTTP-EQUIV=\"refresh\" CONTENT=\"5;url=/\">");
   page += FPSTR(HTTP_HEAD_END);
-  page += FPSTR(HTTP_SAVED);
-  page.replace("{v}", _apName);
-  page.replace("{x}", _ssid);
+  page += FPSTR(HTTP_SAVED2);
   page += FPSTR(HTTP_END);
 
   saveConfig();
   FRAM.write_basic_config(p_Basic_config_, basic_config_offset);
 
-  // TODO: eManometer neustarten
-
   server->send(200, "text/html", page);
+
+  delay(1000);
+  ESP.restart();
 
 }
 
