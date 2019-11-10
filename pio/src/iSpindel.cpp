@@ -427,13 +427,8 @@ bool shouldStartConfig(bool validConf)
   // I added a single reset detection as workaround to enter the config-mode easier
   CONSOLE(F("Boot-Mode: "));
   CONSOLELN(ESP.getResetReason());
-  bool _poweredOnOffOn = _reset_reason == REASON_DEFAULT_RST || _reset_reason == REASON_EXT_SYS_RST;
-  if (_poweredOnOffOn)
-    CONSOLELN(F("power-cycle or reset detected, config mode"));
 
   bool _dblreset = drd.detectDoubleReset();
-  if (_dblreset)
-    CONSOLELN(F("\nDouble Reset detected"));
 
   bool _wifiCred = (WiFi.SSID() != "");
   uint8_t c = 0;
@@ -453,26 +448,30 @@ bool shouldStartConfig(bool validConf)
 
   int test = digitalRead(D7);
 
-  if (validConf && !_dblreset && _wifiCred && test == 1 )
-  {
-    CONSOLELN(F("\nwoken from deepsleep, normal mode"));
-    return false;
-  }
-  // config mode
-  else
-  {
+  bool config = false;
 
-    if(test == 0)
-    {
-        CONSOLELN(F("\ngoing to Config Mode"));
-        return true;
-    }
-    else
-    {
-      CONSOLELN(F("\ngoing to normal Mode"));
-      return false;
-    }
-    
+  if (!validConf) {
+    CONSOLELN(F("going to config mode. Reaseon: no valid config"));
+    config = true;
+  }
+  if (_dblreset) {
+    CONSOLELN(F("going to config mode. Reaseon: double reset detected"));
+    config = true;
+  }
+  if (!_wifiCred) {
+    CONSOLELN(F("going to config mode. Reaseon: no WIFI credentials"));
+    config = true;
+  }
+  if (test == 0) {
+    CONSOLELN(F("going to config mode. Reaseon: button held down"));
+    config = true;
+  }
+
+  if (config) 
+    return true;
+  else {
+    CONSOLELN(F("normal mode"));
+    return false;
   }
 }
 
@@ -1147,6 +1146,7 @@ void loop()
   static timeout timer_apicall(g_flashConfig.sleeptime * 1000);
   static timeout timer_display;
 
+  drd.loop();
   webserver->process();
   g_timer_mgr.check_timers();
 
