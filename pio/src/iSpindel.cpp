@@ -17,8 +17,7 @@ All rights reserverd by S.Lang <universam@web.de>
 #include "RunningMedian.h"
 #include "webserver.h"
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
-#include <DNSServer.h>
-#include <ESP8266WebServer.h>
+
 #include <ESP8266WiFi.h> //https://github.com/esp8266/Arduino
 #include <FS.h>          //this needs to be first
 #include "MCP3221A5T-E.h"
@@ -45,8 +44,6 @@ const long interval = 250;           // interval at which to blink (milliseconds
 
 DisplayInterface* disp = nullptr;
 
-double setpoint_pressure = 0;
-
 uint32_t open = 0;
 uint32_t close = 0;
 uint32_t open_time = 0.0;
@@ -55,6 +52,8 @@ uint32_t next_calc = 0;
 uint32_t next_vale_calc = 0;
 float opening_time = 0.0;
 uint16_t times_open = 0;
+
+
 #define SIZE_OF_AVG  12
 #define MosFET D0
 #define LED_RED D4
@@ -63,6 +62,7 @@ uint16_t times_open = 0;
 #define Hz_1 0x04
 #define Hz_0_25 0x01
 #define Hz_0_5  0x02
+
 typedef double tFloatAvgType;
 typedef double tTempSumType;
 uint32_t blink = 0;
@@ -75,22 +75,11 @@ typedef struct FloatAvgFilter
 
 tFloatAvgFilter Temperature_filtered;
 tFloatAvgFilter pressure_filtered;
- void ICACHE_RAM_ATTR onTimerISR(){
+
+void ICACHE_RAM_ATTR onTimerISR(){
     blink++;  //Toggle LED Pin
     timer1_write(600000);//12us
 }
-
-// Variable to store the HTTP request
-String header;
-
-// Auxiliar variables to store the current output state
-String output5State = "off";
-String output4State = "off";
-unsigned long currentTime = millis();
-// Previous time
-unsigned long previousTime = 0; 
-// Define timeout time in milliseconds (example: 2000ms = 2s)
-const long timeoutTime = 2000;
 
 // definitions go here
 MCP3221_Base ADC_;
@@ -109,11 +98,6 @@ FlashConfig g_flashConfig;
 uint32_t DSreqTime = 0;
 
 float  Temperatur, Pressure, carbondioxide; 
-
-Webserver* wifiManager;
-
-//iGauge new Stuff 
-
 
 void i2cscan()
 {
@@ -1150,11 +1134,7 @@ void loop()
   webserver->process();
   g_timer_mgr.check_timers();
 
-  // Don't do anything else than web handling in Config Mode
-  if (WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA) {
-    return;
-  }
-
+  bool configMode = WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA;
 
   if (timer_expired(timer_apicall)) {
     //requestTemp();
@@ -1224,37 +1204,39 @@ void loop()
     carbondioxide = (float)(((double)Pressure + 1.013) * 10 * exp(exponent));
 
     if (timer_expired(timer_display)) {
-    // save the last time you blinked the LED
+      blink++;
+      if (disp) {
+        disp->clear();
+        disp->setLine(0);
+        disp_print_header();
 
-    if (disp) {
-      disp->clear();
-      disp->setLine(0);
-      disp_print_header();
-    }
-
-    blink++;
-    if (disp) {
-      disp->setLine(1);
-      disp->printf("Druck: %.2f bar  ", Pressure);
-      disp->setLine(2);
-      disp->printf("Temp: %.2f 'C", Temperatur);
-      disp->setLine(3);
-      disp->printf("CO2: %.2f g/l  ", carbondioxide);
-      disp->setLine(4);
-      disp->printf("Zeit: %.2f s", p_Statistic_->opening_time/1000);
-      disp->setLine(5);
-      disp->printf("Anzahl: %d", p_Statistic_->times_open);
-      disp->setLine(6);
-      if(p_Controller_->compressed_gas_bottle)
-      {
-        disp->setLine(7);
-        disp->print("CO2 Flasche");
-      }
-      else
-      {
-        disp->setLine(7);
-        disp->print("Gaerung       ");
-      }
+        if (configMode) {
+          disp->setLine(1);
+          disp->printf("WiFi Config Mode");
+        }
+        else {
+          disp->setLine(1);
+          disp->printf("Druck: %.2f bar  ", Pressure);
+          disp->setLine(2);
+          disp->printf("Temp: %.2f 'C", Temperatur);
+          disp->setLine(3);
+          disp->printf("CO2: %.2f g/l  ", carbondioxide);
+          disp->setLine(4);
+          disp->printf("Zeit: %.2f s", p_Statistic_->opening_time/1000);
+          disp->setLine(5);
+          disp->printf("Anzahl: %d", p_Statistic_->times_open);
+          disp->setLine(6);
+          if(p_Controller_->compressed_gas_bottle)
+          {
+            disp->setLine(7);
+            disp->print("CO2 Flasche");
+          }
+          else
+          {
+            disp->setLine(7);
+            disp->print("Gaerung       ");
+          }
+        }
 
       disp->sync();
     }
@@ -1265,6 +1247,7 @@ void loop()
   unsigned long currentMillis = millis();
 
   if (currentMillis - next_calc >= p_Controller_->calc_time) {
+    CONSOLELN("calc time");
     next_calc = currentMillis;
     calc_valve_time(p_Controller_,&open,&close,&open_time,&close_time,Pressure);
   }
