@@ -574,11 +574,11 @@ bool forwardUbidots()
     SenderClass sender;
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("pressure", Pressure);
-    sender.add("carbondioxid", carbondioxide);
+    sender.add("co2", carbondioxide);
     sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
-    sender.add("Opening_times",p_Statistic_->times_open);
-    sender.add("Open_time",p_Statistic_->opening_time/1000);
+    sender.add("nun-openings",p_Statistic_->times_open);
+    sender.add("open-time",p_Statistic_->opening_time/1000);
     CONSOLELN(F("\ncalling Ubidots"));
     return sender.sendUbidots(g_flashConfig.token, g_flashConfig.name);
 }
@@ -589,11 +589,11 @@ bool forwardMQTT()
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("temp_units", tempScaleLabel());
     sender.add("pressure", Pressure);
-    sender.add("carbondioxid", carbondioxide);
+    sender.add("co2", carbondioxide);
     sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
-    sender.add("Opening_times",p_Statistic_->times_open);
-    sender.add("Open_time",p_Statistic_->opening_time/1000);
+    sender.add("num-openings",p_Statistic_->times_open);
+    sender.add("open-time",p_Statistic_->opening_time/1000);
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling MQTT"));
     return sender.sendMQTT(g_flashConfig.server, g_flashConfig.port, g_flashConfig.username, g_flashConfig.password, g_flashConfig.name);
@@ -605,11 +605,11 @@ bool forwardInfluxDB()
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("temp_units", tempScaleLabel());
     sender.add("pressure", Pressure);
-    sender.add("carbondioxid", carbondioxide);
+    sender.add("co2", carbondioxide);
     sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
-    sender.add("Opening_times",p_Statistic_->times_open);
-    sender.add("Open_time",p_Statistic_->opening_time/1000);
+    sender.add("num-openings",p_Statistic_->times_open);
+    sender.add("open-time",p_Statistic_->opening_time/1000);
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling InfluxDB"));
     CONSOLELN(String(F("Sending to db: ")) + g_flashConfig.db + String(F(" w/ credentials: ")) + g_flashConfig.username + String(F(":")) + g_flashConfig.password);
@@ -621,11 +621,11 @@ bool forwardPrometheus()
     SenderClass sender;
     sender.add("temperature", Temperatur);
     sender.add("pressure", Pressure);
-    sender.add("carbondioxid", carbondioxide);
+    sender.add("co2", carbondioxide);
     sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
-    sender.add("Opening_times",p_Statistic_->times_open);
-    sender.add("Open_time",p_Statistic_->opening_time/1000);
+    sender.add("num-openings",p_Statistic_->times_open);
+    sender.add("open-time",p_Statistic_->opening_time/1000);
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling Prometheus Pushgateway"));
     return sender.sendPrometheus(g_flashConfig.server, g_flashConfig.port, g_flashConfig.job, g_flashConfig.instance);
@@ -642,11 +642,11 @@ bool forwardGeneric()
     sender.add("temp_units", tempScaleLabel());
     sender.add("type","eManometer");
     sender.add("pressure", Pressure);
-    sender.add("carbondioxid", carbondioxide);
+    sender.add("co2", carbondioxide);
     sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
-    sender.add("Opening_times",p_Statistic_->times_open);
-    sender.add("Open_time",p_Statistic_->opening_time/1000);
+    sender.add("num-openings",p_Statistic_->times_open);
+    sender.add("open-time",p_Statistic_->opening_time/1000);
 
     switch(g_flashConfig.api) {
       case API_HTTP:
