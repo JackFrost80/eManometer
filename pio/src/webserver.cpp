@@ -408,7 +408,6 @@ boolean Webserver::startWebserver()
   server->on("/config", std::bind(&Webserver::handleConfig, this));
   server->on("/cs", std::bind(&Webserver::handleConfigSave, this));
   server->on("/wifisave", std::bind(&Webserver::handleWifiSave, this));
-  server->on("/close", std::bind(&Webserver::handleServerClose, this));
   server->on("/i", std::bind(&Webserver::handleInfo, this));
   server->on("/info", std::bind(&Webserver::handleiSpindel, this));
   server->on("/ajax", std::bind(&Webserver::handleAjaxRefresh, this));
@@ -747,6 +746,7 @@ void Webserver::handleWifi()
   }
 
   page += FPSTR(HTTP_FORM_END);
+  page += FPSTR(HTTP_BACK_BTN);
 
   page += FPSTR(HTTP_END);
 
@@ -785,6 +785,8 @@ void Webserver::genConfigPage(String& page, const std::list<String>& params)
   }
 
   page += FPSTR(HTTP_FORM_END);
+  page += FPSTR(HTTP_BACK_BTN);
+
 }
 
 
@@ -1035,31 +1037,6 @@ void Webserver::handleConfigSave()
 
 }
 
-/** Handle shut down the server page */
-void Webserver::handleServerClose()
-{
-  DEBUG_WM(F("Server Close"));
-  header();
-  String page = FPSTR(HTTP_HEAD);
-  page.replace("{v}", "Close Server");
-  page += FPSTR(HTTP_SCRIPT);
-  page += FPSTR(HTTP_STYLE);
-  page += _customHeadElement;
-  page += FPSTR(HTTP_HEAD_END);
-  page += F("<div class=\"msg\">");
-  page += F("My network is <strong>");
-  page += WiFi.SSID();
-  page += F("</strong><br>");
-  page += F("My IP address is <strong>");
-  page += WiFi.localIP().toString();
-  page += F("</strong><br><br>");
-  page += F("Configuration server closed...<br><br>");
-  //page += F("Push button on device to restart configuration server!");
-  page += FPSTR(HTTP_END);
-  server->send(200, "text/html", page);
-  stopConfigPortal = true; //signal ready to shutdown config portal
-  DEBUG_WM(F("Sent server close page"));
-}
 /** Handle the info page */
 void Webserver::handleInfo()
 {
@@ -1135,6 +1112,7 @@ void Webserver::handleInfo()
   page += F("<td>Run a WiFi scan and return results in JSON format. Interface for programmatic WiFi configuration.</td></tr>");
   page += F("</table>");
   page += F("<p/>");
+  page += FPSTR(HTTP_BACK_BTN);
   page += FPSTR(HTTP_END);
 
   server->send(200, "text/html", page);
@@ -1182,6 +1160,7 @@ void Webserver::handleiSpindel()
   page += F("<dd>Date: ");
   page += __DATE__ " " __TIME__;
   page += F("</dl>");
+  page += FPSTR(HTTP_BACK_BTN);
   page += FPSTR(HTTP_END);
 
   server->send(200, "text/html", page);
@@ -1241,6 +1220,7 @@ void Webserver::handleMnt()
   page += F("<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><br><input type='submit' class=\"btn\" value='update'></form>");
   page += F("<hr><h2>Factory Reset</h2><br>All settings will be removed");
   page += F("<br><form action=\"/reset\" method=\"get\"><button class=\"btn\">factory reset</button></form><br/>");
+  page += FPSTR(HTTP_BACK_BTN);
   page += FPSTR(HTTP_END);
 
   server->send(200, "text/html", page);
