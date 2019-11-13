@@ -380,6 +380,9 @@ Webserver::Webserver()
 {
   //Do a network scan before setting up an access point so as not to close WiFiNetwork while scanning.
   numberOfNetworks = scanWifiNetworks(networkIndicesptr);
+
+  if (WiFi.getAutoConnect() == 0)
+    WiFi.setAutoConnect(1);
 }
 Webserver::~Webserver()
 {
@@ -416,7 +419,6 @@ boolean Webserver::startWebserver()
   server->on("/reset", std::bind(&Webserver::handleReset, this));
   server->on("/update", HTTP_POST, std::bind(&Webserver::handleUpdateDone, this), std::bind(&Webserver::handleUpdating, this));
   server->onNotFound(std::bind(&Webserver::handleNotFound, this));
-  server->begin(); // Web server start
   DEBUG_WM(F("HTTP server started"));
 
   server->begin();
