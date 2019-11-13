@@ -137,10 +137,10 @@ paramMap parameters = {
     "interval",
     {
       [] (String& page) {
-        addParam(page, "interval", "Update Interval", String(g_flashConfig.sleeptime), 128);
+        addParam(page, "interval", "Update Interval", String(g_flashConfig.interval), 128);
       },
       [] (const String& arg) {
-        g_flashConfig.sleeptime = arg.toInt();
+        g_flashConfig.interval = arg.toInt();
       }
     }
   },

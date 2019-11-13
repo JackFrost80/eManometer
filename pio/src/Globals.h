@@ -144,7 +144,7 @@ struct FlashConfig {
   String ssid;
   String psk;
   uint8_t api;
-  uint32_t sleeptime = 15 * 60;
+  uint32_t interval = 15 * 60;
   uint16_t port = 80;
   TempUnits tempscale = TempCelsius;
 };

@@ -357,7 +357,7 @@ bool readConfig()
           if (doc.containsKey("Server"))
             g_flashConfig.server = doc["Server"].as<String>();
           if (doc.containsKey("Sleep"))
-            g_flashConfig.sleeptime = doc["Sleep"];
+            g_flashConfig.interval = doc["Sleep"];
           if (doc.containsKey("API"))
             g_flashConfig.api = doc["API"];
           if (doc.containsKey("Port"))
@@ -507,9 +507,7 @@ bool saveConfig()
 
   doc["Name"] = g_flashConfig.name;
   doc["Token"] = g_flashConfig.token;
-  doc["Sleep"] = g_flashConfig.sleeptime;
-  // first reboot is for test
-  g_flashConfig.sleeptime = 1;
+  doc["Sleep"] = g_flashConfig.interval;
   doc["Server"] = g_flashConfig.server;
   doc["API"] = g_flashConfig.api;
   doc["Port"] = g_flashConfig.port;
@@ -558,11 +556,11 @@ bool processResponse(String response)
     if (!error && doc.containsKey("interval"))
     {
       uint32_t interval = doc["interval"];
-      if (interval != g_flashConfig.sleeptime &&
+      if (interval != g_flashConfig.interval &&
           interval < 24 * 60 * 60 &&
           interval > 10)
       {
-        g_flashConfig.sleeptime = interval;
+        g_flashConfig.interval = interval;
         CONSOLE(F("Received new Interval config: "));
         CONSOLELN(interval);
         return saveConfig();
@@ -577,7 +575,7 @@ bool forwardUbidots()
     sender.add("temperature", scaleTemperature(Temperatur));
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
-    sender.add("interval", g_flashConfig.sleeptime);
+    sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
@@ -592,7 +590,7 @@ bool forwardMQTT()
     sender.add("temp_units", tempScaleLabel());
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
-    sender.add("interval", g_flashConfig.sleeptime);
+    sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
@@ -608,7 +606,7 @@ bool forwardInfluxDB()
     sender.add("temp_units", tempScaleLabel());
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
-    sender.add("interval", g_flashConfig.sleeptime);
+    sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
@@ -624,7 +622,7 @@ bool forwardPrometheus()
     sender.add("temperature", Temperatur);
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
-    sender.add("interval", g_flashConfig.sleeptime);
+    sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
@@ -645,7 +643,7 @@ bool forwardGeneric()
     sender.add("type","eManometer");
     sender.add("pressure", Pressure);
     sender.add("carbondioxid", carbondioxide);
-    sender.add("interval", g_flashConfig.sleeptime);
+    sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
     sender.add("Opening_times",p_Statistic_->times_open);
     sender.add("Open_time",p_Statistic_->opening_time/1000);
@@ -1117,7 +1115,7 @@ void setup()
 
 void loop()
 {
-  static timeout timer_apicall(g_flashConfig.sleeptime * 1000);
+  static timeout timer_apicall(g_flashConfig.interval * 1000);
   static timeout timer_display;
 
   drd.loop();
@@ -1130,7 +1128,7 @@ void loop()
     //requestTemp();
     uploadData();
     
-    set_timer(timer_apicall, g_flashConfig.sleeptime * 1000);
+    set_timer(timer_apicall, g_flashConfig.interval * 1000);
   }
 
   if(isDS18B20ready())
