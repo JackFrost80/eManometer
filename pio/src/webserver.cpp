@@ -514,6 +514,7 @@ void Webserver::handleUpdateDone()
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
+  page += F("<META HTTP-EQUIV=\"refresh\" CONTENT=\"15;url=/\">");
   page += FPSTR(HTTP_HEAD_END);
   page += "<h1>";
   page += _apName;
@@ -528,6 +529,7 @@ void Webserver::handleUpdateDone()
     page += FPSTR(HTTP_UPDATE_SUC);
     CONSOLELN("update done");
   }
+  page += F("<br>Will be redirected to portal page in 15 seconds");
   page += FPSTR(HTTP_END);
   server->send(200, "text/html", page);
   delay(1000); // send page
