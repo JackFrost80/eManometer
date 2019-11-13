@@ -592,8 +592,11 @@ bool forwardMQTT()
     sender.add("co2", carbondioxide);
     sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
-    sender.add("num-openings",p_Statistic_->times_open);
-    sender.add("open-time",p_Statistic_->opening_time/1000);
+
+    if (g_flashConfig.mode == ModeSpundingValve) {
+      sender.add("num-openings",p_Statistic_->times_open);
+      sender.add("open-time",p_Statistic_->opening_time/1000);
+    }
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling MQTT"));
     return sender.sendMQTT(g_flashConfig.server, g_flashConfig.port, g_flashConfig.username, g_flashConfig.password, g_flashConfig.name);
@@ -608,8 +611,11 @@ bool forwardInfluxDB()
     sender.add("co2", carbondioxide);
     sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
-    sender.add("num-openings",p_Statistic_->times_open);
-    sender.add("open-time",p_Statistic_->opening_time/1000);
+
+    if (g_flashConfig.mode == ModeSpundingValve) {
+      sender.add("num-openings",p_Statistic_->times_open);
+      sender.add("open-time",p_Statistic_->opening_time/1000);
+    }
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling InfluxDB"));
     CONSOLELN(String(F("Sending to db: ")) + g_flashConfig.db + String(F(" w/ credentials: ")) + g_flashConfig.username + String(F(":")) + g_flashConfig.password);
@@ -624,8 +630,11 @@ bool forwardPrometheus()
     sender.add("co2", carbondioxide);
     sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
-    sender.add("num-openings",p_Statistic_->times_open);
-    sender.add("open-time",p_Statistic_->opening_time/1000);
+
+    if (g_flashConfig.mode == ModeSpundingValve) {
+      sender.add("num-openings",p_Statistic_->times_open);
+      sender.add("open-time",p_Statistic_->opening_time/1000);
+    }
     sender.add("RSSI", WiFi.RSSI());
     CONSOLELN(F("\ncalling Prometheus Pushgateway"));
     return sender.sendPrometheus(g_flashConfig.server, g_flashConfig.port, g_flashConfig.job, g_flashConfig.instance);
@@ -645,8 +654,11 @@ bool forwardGeneric()
     sender.add("co2", carbondioxide);
     sender.add("interval", g_flashConfig.interval);
     sender.add("RSSI", WiFi.RSSI());
-    sender.add("num-openings",p_Statistic_->times_open);
-    sender.add("open-time",p_Statistic_->opening_time/1000);
+
+    if (g_flashConfig.mode == ModeSpundingValve) {
+      sender.add("num-openings",p_Statistic_->times_open);
+      sender.add("open-time",p_Statistic_->opening_time/1000);
+    }
 
     switch(g_flashConfig.api) {
       case API_HTTP:
@@ -1113,6 +1125,57 @@ void setup()
   webserver->startWebserver();
 }
 
+void controller()
+{
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - next_calc >= p_Controller_->calc_time) {
+    next_calc = currentMillis;
+    calc_valve_time(p_Controller_,&open,&close,&open_time,&close_time,Pressure);
+  }
+  
+ if (currentMillis - open >= open_time) {  // Open valve
+    digitalWrite(MosFET ,0);
+    
+  }
+
+  //if((currentMillis - open >= p_Controller_->open_time) && (currentMillis - close <= p_Controller_->close_time)) // Close Valve
+  //{
+    //digitalWrite(MosFET ,0);
+  //}
+  if(currentMillis - next_vale_calc >= p_Controller_->cycle_time)  // Calc new values
+  {
+    open_time = p_Controller_->open_time;
+    open = currentMillis;
+    
+    //close = currentMillis + p_Controller_->close_time;
+    next_vale_calc = currentMillis;
+    
+    
+    if(p_Controller_->open_time > 0)
+    {
+      p_Statistic_->opening_time += open_time;
+      p_Statistic_->times_open++;
+      uint32_t calculated_crc = 0;
+      crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
+      p_Statistic_->crc32 = calculated_crc;
+      FRAM.write_statistics(p_Statistic_,Statistics_offset);
+      digitalWrite(MosFET ,1);
+    }
+    
+  }
+  uint8_t input = digitalRead(D7);
+  if(input == 0)
+    {
+      p_Statistic_->opening_time = 0.0;
+      p_Statistic_->times_open = 0;
+      uint32_t calculated_crc = 0;
+      crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
+      p_Statistic_->crc32 = calculated_crc;
+      FRAM.write_statistics(p_Statistic_,Statistics_offset);
+    }
+}
+
 void loop()
 {
   static timeout timer_apicall(g_flashConfig.interval * 1000);
@@ -1193,20 +1256,23 @@ void loop()
           disp->printf("Temp: %.2f 'C", Temperatur);
           disp->setLine(3);
           disp->printf("CO2: %.2f g/l  ", carbondioxide);
-          disp->setLine(4);
-          disp->printf("Zeit: %.2f s", p_Statistic_->opening_time/1000);
-          disp->setLine(5);
-          disp->printf("Anzahl: %d", p_Statistic_->times_open);
-          disp->setLine(6);
-          if(p_Controller_->compressed_gas_bottle)
-          {
-            disp->setLine(7);
-            disp->print("CO2 Flasche");
-          }
-          else
-          {
-            disp->setLine(7);
-            disp->print("Gaerung       ");
+
+          if (g_flashConfig.mode == ModeSpundingValve) {
+            disp->setLine(4);
+            disp->printf("Zeit: %.2f s", p_Statistic_->opening_time/1000);
+            disp->setLine(5);
+            disp->printf("Anzahl: %d", p_Statistic_->times_open);
+            disp->setLine(6);
+            if(p_Controller_->compressed_gas_bottle)
+            {
+              disp->setLine(7);
+              disp->print("CO2 Flasche");
+            }
+            else
+            {
+              disp->setLine(7);
+              disp->print("Gaerung       ");
+            }
           }
         }
 
@@ -1216,52 +1282,7 @@ void loop()
     set_timer(timer_display, 250);
   }
 
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - next_calc >= p_Controller_->calc_time) {
-    next_calc = currentMillis;
-    calc_valve_time(p_Controller_,&open,&close,&open_time,&close_time,Pressure);
+  if (g_flashConfig.mode == ModeSpundingValve) {
+    controller();
   }
-  
- if (currentMillis - open >= open_time) {  // Open valve
-    digitalWrite(MosFET ,0);
-    
-  }
-
-  //if((currentMillis - open >= p_Controller_->open_time) && (currentMillis - close <= p_Controller_->close_time)) // Close Valve
-  //{
-    //digitalWrite(MosFET ,0);
-  //}
-  if(currentMillis - next_vale_calc >= p_Controller_->cycle_time)  // Calc new values
-  {
-    open_time = p_Controller_->open_time;
-    open = currentMillis;
-    
-    //close = currentMillis + p_Controller_->close_time;
-    next_vale_calc = currentMillis;
-    
-    
-    if(p_Controller_->open_time > 0)
-    {
-      p_Statistic_->opening_time += open_time;
-      p_Statistic_->times_open++;
-      uint32_t calculated_crc = 0;
-      crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
-      p_Statistic_->crc32 = calculated_crc;
-      FRAM.write_statistics(p_Statistic_,Statistics_offset);
-      digitalWrite(MosFET ,1);
-    }
-    
-  }
-  uint8_t input = digitalRead(D7);
-  if(input == 0)
-    {
-      p_Statistic_->opening_time = 0.0;
-      p_Statistic_->times_open = 0;
-      uint32_t calculated_crc = 0;
-      crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
-      p_Statistic_->crc32 = calculated_crc;
-      FRAM.write_statistics(p_Statistic_,Statistics_offset);
-    }
-  
 }

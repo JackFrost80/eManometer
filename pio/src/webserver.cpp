@@ -834,16 +834,23 @@ void Webserver::handleConfig()
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h2>eManometer Config</h2>");
 
-  genConfigPage(page, { 
+  std::list<String> configItems = {
     "tempscale", 
     "setpoint_carb", 
-    "setpoint", 
-    "controller_p_value", 
-    "opening_time", 
-    "dead_zone", 
-    "cycle_time", 
-    "pressure_source"
-  });
+    "setpoint"
+  };
+
+  if (g_flashConfig.mode == ModeSpundingValve) {
+    configItems.insert(configItems.end(), {
+      "controller_p_value", 
+      "opening_time", 
+      "dead_zone", 
+      "cycle_time", 
+      "pressure_source"
+    });
+  }
+
+  genConfigPage(page, configItems);
 
   page += FPSTR(HTTP_END);
 
@@ -1158,10 +1165,13 @@ void Webserver::handleiSpindel()
   page += F("<div class=\"info-temperature\" />");
   page += F("<tr><td>CO2:</td><td>");
   page += F("<div class=\"info-co2\" />");
-  page += F("<tr><td>Valve open time:</td><td>");
-  page += F("<div class=\"info-opening-time\" />");
-  page += F("<tr><td>Num of openings:</td><td>");
-  page += F("<div class=\"info-num-openings\" />");
+
+  if (g_flashConfig.mode == ModeSpundingValve) {
+    page += F("<tr><td>Valve open time:</td><td>");
+    page += F("<div class=\"info-opening-time\" />");
+    page += F("<tr><td>Num of openings:</td><td>");
+    page += F("<div class=\"info-num-openings\" />");
+  }
   page += F("</td></tr>");
   page += F("</table></h3>");
   page += F("<hr><dl>");
