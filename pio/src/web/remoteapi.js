@@ -77,7 +77,7 @@ function refresh()
 			break;
 		// InfluxDB
 		case 5:
-			showElem("server");
+			showElem("address");
 			showElem("port");
 			showElem("db");
 			showElem("username");
@@ -85,14 +85,14 @@ function refresh()
 			break;
 		// Prometheus
 		case 6:
-			showElem("server");
+			showElem("address");
 			showElem("port");
 			showElem("job");
 			showElem("instance");
 			break;
 		// MQTT
 		case 7:
-			showElem("server");
+			showElem("address");
 			showElem("port");
 			showElem("username");
 			showElem("password");
