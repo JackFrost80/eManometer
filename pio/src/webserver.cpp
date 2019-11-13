@@ -1020,7 +1020,7 @@ void Webserver::handleConfigSave()
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
-  page += F("<META HTTP-EQUIV=\"refresh\" CONTENT=\"5;url=/\">");
+  page += F("<META HTTP-EQUIV=\"refresh\" CONTENT=\"10;url=/\">");
   page += FPSTR(HTTP_HEAD_END);
   page += FPSTR(HTTP_SAVED2);
   page += FPSTR(HTTP_END);
