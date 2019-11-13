@@ -280,9 +280,7 @@ void set_white()
   digitalWrite(LED_GREEN,1);
 }
 
-
-
-void blink_red(uint32_t Frequency)
+void blink_red()
 {
   set_black();
   uint32 helper = blink & 0x01UL;
@@ -291,6 +289,22 @@ void blink_red(uint32_t Frequency)
   else
     digitalWrite(LED_RED, 1);
 }
+
+void blink_yellow()
+{
+  uint32 helper = blink & 0x01UL;
+  if(helper == 1) {
+    digitalWrite(LED_RED,1);
+    digitalWrite(LED_BLUE,0);
+    digitalWrite(LED_GREEN,1);
+  }
+  else {
+    digitalWrite(LED_RED, 0);
+    digitalWrite(LED_BLUE,0);
+    digitalWrite(LED_GREEN,0);
+  }
+}
+
  // old stuff
 
 float scaleTemperature(float t)
@@ -1128,51 +1142,35 @@ void loop()
     DSreqTime = millis();
    }
   uint16_t raw_data = ADC_.MCP3221_getdata();
+  bool valid_reading = false;
 
-  //uint16_t raw_value = raw_data;
-    
-    if(raw_data >= 0x100)
-    {
-      if(raw_data >= p_Basic_config_->zero_value_sensor)
-          raw_data -=p_Basic_config_->zero_value_sensor; // Set Zero to 0,5V
-        else
-          raw_data = 0;
+  if(raw_data >= 0x100) {
+    valid_reading = true;
+    if(raw_data >= p_Basic_config_->zero_value_sensor)
+        raw_data -=p_Basic_config_->zero_value_sensor; // Set Zero to 0,5V
+      else
+        raw_data = 0;
+  }
+
+  if (configMode) {
+    blink_yellow();
+  }
+  else {
+    if (valid_reading) {
       if(raw_data >= p_Basic_config_->value_red)
-        {
-          set_red();
-        }
-        else
-        {
-          if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_blue)
-            {
-              set_blue();
-            }
-            else
-            {
-              if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_turkis)
-              {
-                 set_turkis();
-              }
-              else
-              {
-                if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_green)
-                {
-                  set_green();
-                }
-                else
-                {
-                  set_violet();
-                }
-              }
-            }
-          
-        }
+        set_red();
+      else if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_blue)
+        set_blue();
+      else if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_turkis)
+        set_turkis();
+      else if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_green)
+        set_green();
+      else
+        set_violet();
     }
     else
-    {
-      blink_red(Hz_0_25);
-      
-    }
+      blink_red();
+  }
     
     AddToFloatAvg(&pressure_filtered,((double)raw_data * p_Basic_config_->faktor_pressure));
     Pressure = GetOutputValue(&pressure_filtered);
