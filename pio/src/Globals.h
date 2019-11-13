@@ -70,7 +70,8 @@ enum RemoteAPI {
     API_TCP = 4,
     API_InfluxDB = 5,
     API_Prometheus = 6,
-    API_MQTT = 7
+    API_MQTT = 7,
+    API_THINGSPEAK = 8,
 };
 
 extern std::vector<String> RemoteAPILabels;

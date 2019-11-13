@@ -55,8 +55,9 @@ function refresh()
 		// Off
 		case 0:
 			break;
-		// Ubidots
+		// Ubidots & ThingSpeak
 		case 1:
+		case 8:
 			showElem("token");
 			break;
 		// Craftbeerpi

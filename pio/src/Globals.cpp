@@ -20,7 +20,8 @@ std::vector<String> RemoteAPILabels = {
     "TCP",
     "InfluxDB",
     "Prometheus",
-    "MQTT"
+    "MQTT",
+    "ThingSpeak"
 };
 
 controller_t Controller_;

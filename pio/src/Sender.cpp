@@ -8,6 +8,7 @@
 #include "Sender.h"
 #include "Globals.h"
 #include <PubSubClient.h>
+#include <ThingSpeak.h>
 
 #define UBISERVER "things.ubidots.com"
 #define CONNTIMEOUT 2000
@@ -156,6 +157,39 @@ String SenderClass::sendTCP(String server, uint16_t port)
     CONSOLELN(response);
     stopclient();
     return response;
+}
+
+
+bool SenderClass::sendThingSpeak(String token)
+{
+    int field = 0;
+    const char * writeAPIKey = token.c_str();
+    
+    serializeJson(_doc, Serial);
+    ThingSpeak.begin(_client);
+
+    CONSOLELN(F("\nSender: ThingSpeak posting"));
+   
+    for (const auto &kv : _doc.as<JsonObject>())
+    {   
+        field++;  
+        ThingSpeak.setField(field, kv.value().as<String>());
+    }
+    // write to the ThingSpeak channel 
+    // actually the channel number doesnt matter at all because the channel is already
+    // denoted by the API key
+    int x = ThingSpeak.writeFields(0, writeAPIKey);
+
+    if(x == 200){
+     Serial.println("Channel update successful.");
+    }
+    else{
+     Serial.println("Problem updating channel. HTTP error code " + String(x));
+     return false;
+    }
+    _client.stop();
+    stopclient();
+    return true;
 }
 
 bool SenderClass::sendGenericPost(String server, String url, uint16_t port)

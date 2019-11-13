@@ -674,6 +674,24 @@ bool forwardGeneric()
   return false;
 }
 
+bool forwardThingSpeak()
+{
+    SenderClass sender;
+    sender.add("temperature", Temperatur);
+    sender.add("pressure", Pressure);
+    sender.add("co2", carbondioxide);
+    sender.add("interval", g_flashConfig.interval);
+    sender.add("RSSI", WiFi.RSSI());
+
+    if (g_flashConfig.mode == ModeSpundingValve) {
+      sender.add("num-openings",p_Statistic_->times_open);
+      sender.add("open-time",p_Statistic_->opening_time/1000);
+    }
+
+    CONSOLELN(F("\ncalling ThingSpeak"));
+    return sender.sendThingSpeak(g_flashConfig.token);
+}
+
 bool uploadData()
 {
   switch(g_flashConfig.api) {
@@ -687,6 +705,8 @@ bool uploadData()
       return forwardInfluxDB();
     case API_Prometheus:
       return forwardPrometheus();
+    case API_THINGSPEAK:
+      return forwardThingSpeak();
     case API_HTTP:
     case API_CraftBeerPi:
     case API_TCP:
