@@ -14,16 +14,11 @@ All rights reserverd by S.Lang <universam@web.de>
 // #include <Ticker.h>
 #include "DallasTemperature.h"
 #include "DoubleResetDetector.h" // https://github.com/datacute/DoubleResetDetector
-#include "RunningMedian.h"
 #include "webserver.h"
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
 
-#include <ESP8266WiFi.h> //https://github.com/esp8266/Arduino
 #include <FS.h>          //this needs to be first
 #include "MCP3221A5T-E.h"
-#include <regex.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 #include "MR44V064B.h"
 #include "OLED.h"
 
@@ -33,6 +28,7 @@ All rights reserverd by S.Lang <universam@web.de>
 #include "timer.h"
 #include "Sender.h"
 #include "median.h"
+#include "mean.h"
 
 #include <list>
 // !DEBUG 1
@@ -51,8 +47,6 @@ uint32_t next_vale_calc = 0;
 float opening_time = 0.0;
 uint16_t times_open = 0;
 
-
-#define SIZE_OF_AVG  12
 #define MosFET D0
 #define LED_RED D4
 #define LED_GREEN D5
@@ -62,17 +56,11 @@ uint16_t times_open = 0;
 #define Hz_0_5  0x02
 
 uint32_t blink = 0;
-double setpoint_carbondioxide = 5.0;
 
 // der kurze Median Filter (5 Elemente), ist da um etwaige Ausreißer rauszufiltern
 // die bei einem normalen Mittelwert ziemlich durchschlagen
 FastRunningMedian<uint16_t, 5>* median_pressure;
 FastRunningMedian<int, 5>* median_temp;
-
-void ICACHE_RAM_ATTR onTimerISR(){
-    blink++;  //Toggle LED Pin
-    timer1_write(600000);//12us
-}
 
 // definitions go here
 MCP3221_Base ADC_;
@@ -84,13 +72,16 @@ DoubleResetDetector drd(DRD_TIMEOUT, DRD_ADDRESS);
 
 Webserver* webserver;
 
-int detectTempSensor();
-
 FlashConfig g_flashConfig;
 
 uint32_t DSreqTime = 0;
 
+mean<int> adc_mean;
+mean<int> temp_mean;
+
 float  Temperatur, Pressure, carbondioxide; 
+
+int detectTempSensor();
 
 void i2cscan()
 {
@@ -110,20 +101,13 @@ void i2cscan()
  
     if (error == 0)
     {
-      Serial.print("I2C device found at address 0x");
-      if (address<16)
-        Serial.print("0");
-      Serial.print(address,HEX);
-      Serial.println("  !");
+      Serial.printf("I2C device found at address 0x%x\n", address);
  
       nDevices++;
     }
     else if (error==4)
     {
-      Serial.print("Unknown error at address 0x");
-      if (address<16)
-        Serial.print("0");
-      Serial.println(address,HEX);
+      Serial.printf("I2C scan: unknown error at address 0x%x\n", address);
     }    
   }
   if (nDevices == 0)
@@ -150,47 +134,6 @@ void i2c_reset_and_init()
     Wire.setClockStretchLimit(2 * 230);
     
 }
-
-template<typename T>
-class mean {
-  public:
-    mean()
-    {
-    }
-
-    void init(int depth, T def)
-    {
-      m_depth = depth;
-      m_pos = 0;
-      std::vector<T> n(depth, def);
-      vals.swap(n);
-    }
-
-    void add(T val)
-    {
-      vals[m_pos++] = val;
-      m_pos %= m_depth;
-    }
-
-    T get()
-    {
-      T sum = 0;
-      for (int val: vals) {
-        sum += val;
-      }
-
-      return sum / m_depth;
-    }
-
-  private:
-    int m_pos{0};
-    int m_depth{0};
-    std::vector<T> vals;
-};
-
-mean<int> adc_mean;
-mean<int> temp_mean;
-
 
 void set_controller_inital_values(p_controller_t values)
 {
@@ -759,21 +702,6 @@ bool getTemperature(int& temp, bool block = false)
 
   temp = DS18B20.getTemp(tempDeviceAddress);
 
-/*
-  if (raw == DEVICE_DISCONNECTED_RAW) {
-    CONSOLELN(F("ERROR: OW DISCONNECTED"));
-    pinMode(ONE_WIRE_BUS, OUTPUT);
-    digitalWrite(ONE_WIRE_BUS, LOW);
-    delay(100);
-    oneWire->reset();
-
-    CONSOLELN(F("OW Retry"));
-    initDS18B20();
-    delay(OWinterval);
-    getTemperature(false);
-  }
-*/
-
   return true;
 }
 
@@ -1011,6 +939,8 @@ void setup()
   i2c_reset_and_init(); // Init I2C and Reset broken transmission.
   i2cscan();
 
+  delay(100);
+
   setup_ledTest();
 
   ADC_.MCP3221_init(); // Init I2C and Reset broken transmission.
@@ -1052,8 +982,6 @@ void setup()
   // call as late as possible since DS needs converge time
   int temp;
   getTemperature(temp, true);
-  //CONSOLE("Temp: ");
-  Serial.printf("RAW TEMP %d\n", temp);
 
   median_temp = new FastRunningMedian<int, 5>(temp);
   median_pressure = new FastRunningMedian<uint16_t, 5>(raw_data);
@@ -1143,6 +1071,10 @@ void controller()
 
 void loop()
 {
+  static unsigned long prev = micros();
+  unsigned long now = micros();
+  unsigned long looptime = now - prev;
+
   static timeout timer_apicall(g_flashConfig.interval * 1000);
   static timeout timer_display, timer_init_ds;
   static int temp_raw = 0;
@@ -1270,8 +1202,10 @@ void loop()
               disp->print("Gaerung       ");
             }
 
-            disp->setLine(6);
-            disp->printf("ADC: %.2d bar  ", pressure_adc);
+            // for performance debugging, display the time in microseconds the last loop
+            // took
+            //disp->setLine(6);
+            //disp->printf("looptime: %d us ", looptime);
           }
         }
 
@@ -1284,4 +1218,6 @@ void loop()
   if (g_flashConfig.mode == ModeSpundingValve) {
     controller();
   }
+
+  prev = now;
 }
