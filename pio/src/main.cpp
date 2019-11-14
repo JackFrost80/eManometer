@@ -32,6 +32,7 @@ All rights reserverd by S.Lang <universam@web.de>
 #include "display_ssd1306_custom.h"
 #include "timer.h"
 #include "Sender.h"
+#include "median.h"
 
 #include <list>
 // !DEBUG 1
@@ -39,6 +40,7 @@ All rights reserverd by S.Lang <universam@web.de>
 timer_mgr g_timer_mgr;
 
 DisplayInterface* disp = nullptr;
+DeviceAddress tempDeviceAddress;
 
 uint32_t open = 0;
 uint32_t close = 0;
@@ -59,18 +61,13 @@ uint16_t times_open = 0;
 #define Hz_0_25 0x01
 #define Hz_0_5  0x02
 
-typedef double tFloatAvgType;
-typedef double tTempSumType;
 uint32_t blink = 0;
 double setpoint_carbondioxide = 5.0;
-typedef struct FloatAvgFilter
-{
-	tFloatAvgType aData[SIZE_OF_AVG];
-	uint8_t IndexNextValue;
-} tFloatAvgFilter, *p_tFloatAvgFilter;
 
-tFloatAvgFilter Temperature_filtered;
-tFloatAvgFilter pressure_filtered;
+// der kurze Median Filter (5 Elemente), ist da um etwaige Ausreißer rauszufiltern
+// die bei einem normalen Mittelwert ziemlich durchschlagen
+FastRunningMedian<uint16_t, 5>* median_pressure;
+FastRunningMedian<int, 5>* median_temp;
 
 void ICACHE_RAM_ATTR onTimerISR(){
     blink++;  //Toggle LED Pin
@@ -154,69 +151,45 @@ void i2c_reset_and_init()
     
 }
 
-void AddToFloatAvg(tFloatAvgFilter * io_pFloatAvgFilter,
-tFloatAvgType i_NewValue)
-{
-	// Neuen Wert an die dafuer vorgesehene Position im Buffer schreiben.
-	io_pFloatAvgFilter->aData[io_pFloatAvgFilter->IndexNextValue] =
-	i_NewValue;
-	// Der naechste Wert wird dann an die Position dahinter geschrieben.
-	io_pFloatAvgFilter->IndexNextValue++;
-	// Wenn man hinten angekommen ist, vorne wieder anfangen.
-	io_pFloatAvgFilter->IndexNextValue %= SIZE_OF_AVG;
-}
+template<typename T>
+class mean {
+  public:
+    mean()
+    {
+    }
 
-tFloatAvgType GetOutputValue(tFloatAvgFilter * io_pFloatAvgFilter)
-{
-	tTempSumType TempSum = 0;
-	// Durchschnitt berechnen
-	for (uint8_t i = 0; i < SIZE_OF_AVG; ++i)
-	{
-		TempSum += io_pFloatAvgFilter->aData[i];
-	}
-	// Der cast is OK, wenn tFloatAvgType und tTempSumType korrekt gewaehlt wurden.
-	tFloatAvgType o_Result = (tFloatAvgType) (TempSum / SIZE_OF_AVG);
-	return o_Result;
-}
+    void init(int depth, T def)
+    {
+      m_depth = depth;
+      m_pos = 0;
+      std::vector<T> n(depth, def);
+      vals.swap(n);
+    }
 
-void InitFloatAvg(tFloatAvgFilter * io_pFloatAvgFilter,
-tFloatAvgType i_DefaultValue)
-{
-	// Den Buffer mit dem Initialisierungswert fuellen:
-	for (uint8_t i = 0; i < SIZE_OF_AVG; ++i)
-	{
-		io_pFloatAvgFilter->aData[i] = i_DefaultValue;
-	}
-	// Der naechste Wert soll an den Anfang des Buffers geschrieben werden:
-	io_pFloatAvgFilter->IndexNextValue = 0;
-}
+    void add(T val)
+    {
+      vals[m_pos++] = val;
+      m_pos %= m_depth;
+    }
 
+    T get()
+    {
+      T sum = 0;
+      for (int val: vals) {
+        sum += val;
+      }
 
-uint32_t crc32_for_byte(uint32_t r) {
-  for(int j = 0; j < 8; ++j)
-    r = (r & 1? 0: (uint32_t)0xEDB88320L) ^ r >> 1;
-  return r ^ (uint32_t)0xFF000000L;
-}
+      return sum / m_depth;
+    }
 
-uint32_t crc32(uint32_t crc, uint8_t byte)
-/*******************************************************************/
-{
-int8_t i;
-  crc = crc ^ byte;
-  for(i=7; i>=0; i--)
-    crc=(crc>>1)^(0xedb88320ul & (-(crc&1)));
-  return(crc);
-}
+  private:
+    int m_pos{0};
+    int m_depth{0};
+    std::vector<T> vals;
+};
 
-void crc32_array(uint8_t *data, uint16_t n_bytes, uint32_t* crc) {
-  *crc = 0xffffffff;
-  for(uint16_t i=0;i<n_bytes;i++)
-  {
-      *crc = crc32(*crc,*data);
-      data++;
-  }
-}
-
+mean<int> adc_mean;
+mean<int> temp_mean;
 
 
 void set_controller_inital_values(p_controller_t values)
@@ -725,15 +698,13 @@ void requestTemp()
   }
 }
 
-void initDS18B20()
+bool initDS18B20()
 {
-  DeviceAddress tempDeviceAddress;
-
   int owPin = detectTempSensor();
   if (owPin == -1)
   {
     CONSOLELN(F("ERROR: cannot find a OneWire Temperature Sensor!"));
-    return;
+    return false;
   }
 
   pinMode(ONE_WIRE_BUS, OUTPUT);
@@ -750,7 +721,7 @@ void initDS18B20()
     if (owPin == -1)
     {
       CONSOLELN(F("ERROR: cannot find a OneWire Temperature Sensor!"));
-      return;
+      return false;
     }
     else
     {
@@ -765,6 +736,8 @@ void initDS18B20()
   DS18B20.setWaitForConversion(false);
   DS18B20.setResolution(tempDeviceAddress, RESOLUTION);
   requestTemp();
+
+  return true;
 }
 
 bool isDS18B20ready()
@@ -772,25 +745,22 @@ bool isDS18B20ready()
   return millis() - DSreqTime > OWinterval;
 }
 
-float getTemperature(bool block = false)
+bool getTemperature(int& temp, bool block = false)
 {
-  float t = Temperatur;
-
   // we need to wait for DS18b20 to finish conversion
   if (!DSreqTime ||
       (!block && !isDS18B20ready()))
-    return t;
+    return false;
 
   // if we need the result we have to block
   while (!isDS18B20ready())
     delay(10);
   DSreqTime = 0;
 
-  t = DS18B20.getTempCByIndex(0);
+  temp = DS18B20.getTemp(tempDeviceAddress);
 
-  if (t == DEVICE_DISCONNECTED_C || // DISCONNECTED
-      t == 85.0)                    // we read 85 uninitialized
-  {
+/*
+  if (raw == DEVICE_DISCONNECTED_RAW) {
     CONSOLELN(F("ERROR: OW DISCONNECTED"));
     pinMode(ONE_WIRE_BUS, OUTPUT);
     digitalWrite(ONE_WIRE_BUS, LOW);
@@ -800,10 +770,11 @@ float getTemperature(bool block = false)
     CONSOLELN(F("OW Retry"));
     initDS18B20();
     delay(OWinterval);
-    t = getTemperature(false);
+    getTemperature(false);
   }
+*/
 
-  return t;
+  return true;
 }
 
 int detectTempSensor()
@@ -986,54 +957,30 @@ void setup_ledTest()
 
 void setup_FRAM_init()
 {
-  FRAM.read_controller_parameters(p_Controller_,Controller_paramter_offset);
-  uint32_t calculated_crc = 0xffffffff;
-  crc32_array((uint8_t *) p_Controller_,sizeof(controller_t)-4,&calculated_crc);
-  uint32_t helper_crc = p_Controller_->crc32;
-  CONSOLELN(helper_crc,HEX);
-  CONSOLELN(calculated_crc,HEX);
-  if(calculated_crc != p_Controller_->crc32)
-  {
+  if (!FRAM.read_controller_parameters(p_Controller_,Controller_paramter_offset)) {
       CONSOLELN("FRAM Controller Config CRC mismatch..resetting to defaults");
       set_red();
       set_controller_inital_values(p_Controller_);
-      crc32_array((uint8_t *) p_Controller_,sizeof(controller_t)-4,&calculated_crc);
-      p_Controller_->crc32 = calculated_crc;
-      CONSOLELN(p_Controller_->crc32,HEX);
-      CONSOLELN(calculated_crc,HEX);
-      FRAM.write_controller_parameters(p_Controller_,Controller_paramter_offset);
-
   }
-  else
-  {
-    crc32_array((uint8_t *) p_Controller_,sizeof(controller_t),&calculated_crc);
-    CONSOLELN(p_Controller_->crc32,HEX);
-    CONSOLELN(calculated_crc,HEX);
+  else {
     set_green();
   }
-  FRAM.read_statistics(p_Statistic_,Statistics_offset);
-  crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
-  if(p_Statistic_->crc32 != calculated_crc)
-  {
-    CONSOLELN("FRAM Basic Config CRC mismatch..resetting to defaults");
+
+  if (!FRAM.read_statistics(p_Statistic_,Statistics_offset)) {
+    CONSOLELN("FRAM Statistics Config CRC mismatch..resetting to defaults");
     p_Statistic_->opening_time = 0.0;
     p_Statistic_->times_open = 0;
-    crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
-    p_Statistic_->crc32 = calculated_crc;
   }
-  FRAM.read_basic_config(p_Basic_config_,basic_config_offset);
-  crc32_array((uint8_t *) p_Basic_config_,sizeof(basic_config_t)-4,&calculated_crc);
-  if(p_Basic_config_->crc32 != calculated_crc)
-  {
+
+  if (!FRAM.read_basic_config(p_Basic_config_,basic_config_offset)) {
+    CONSOLELN("FRAM Basic Config CRC mismatch resetting to defaults");
     p_Basic_config_->faktor_pressure = 0.0030517578125;
     p_Basic_config_->use_regulator = 0;
-    p_Basic_config_->value_blue = 0.6;
-    p_Basic_config_->value_green = 1.05;
-    p_Basic_config_->value_red = 1246; // Value equal to 4 bar.
-    p_Basic_config_->value_turkis = 0.95;
+    p_Basic_config_->value_blue = 60;
+    p_Basic_config_->value_green = 105;
+    p_Basic_config_->value_red = 4; // 4 bar
+    p_Basic_config_->value_turkis = 95;
     p_Basic_config_->zero_value_sensor = 0x163;
-    crc32_array((uint8_t *) p_Basic_config_,sizeof(basic_config_t)-4,&calculated_crc);
-    p_Basic_config_->crc32 = calculated_crc;
   }
 }
 
@@ -1097,17 +1044,21 @@ void setup()
   WiFi.setOutputPower(20.5);
 
   uint16_t raw_data = ADC_.MCP3221_getdata();
-  CONSOLE("raw data: ");
-  CONSOLELN(raw_data);
-  raw_data -= 0x163; // set 0,5V to zero;
-  Pressure = (float((double)raw_data * 0.0030517578125));
+  //CONSOLE("raw data: ");
+  //CONSOLELN(raw_data);
+  //raw_data -= 0x163; // set 0,5V to zero;
+  //Pressure = (float((double)raw_data * 0.0030517578125));
 
   // call as late as possible since DS needs converge time
-  Temperatur = getTemperature(true);
-  CONSOLE("Temp: ");
-  CONSOLELN(Temperatur);
-  InitFloatAvg(&Temperature_filtered,Temperatur);
-  InitFloatAvg(&pressure_filtered,Pressure);
+  int temp;
+  getTemperature(temp, true);
+  //CONSOLE("Temp: ");
+  Serial.printf("RAW TEMP %d\n", temp);
+
+  median_temp = new FastRunningMedian<int, 5>(temp);
+  median_pressure = new FastRunningMedian<uint16_t, 5>(raw_data);
+  adc_mean.init(10, raw_data);
+  temp_mean.init(10, temp);
 
   if (WiFi.status() != WL_CONNECTED)
   {
@@ -1176,9 +1127,6 @@ void controller()
     {
       p_Statistic_->opening_time += open_time;
       p_Statistic_->times_open++;
-      uint32_t calculated_crc = 0;
-      crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
-      p_Statistic_->crc32 = calculated_crc;
       FRAM.write_statistics(p_Statistic_,Statistics_offset);
       digitalWrite(MosFET ,1);
     }
@@ -1189,9 +1137,6 @@ void controller()
     {
       p_Statistic_->opening_time = 0.0;
       p_Statistic_->times_open = 0;
-      uint32_t calculated_crc = 0;
-      crc32_array((uint8_t *) p_Statistic_,sizeof(statistics_t)-4,&calculated_crc);
-      p_Statistic_->crc32 = calculated_crc;
       FRAM.write_statistics(p_Statistic_,Statistics_offset);
     }
 }
@@ -1199,7 +1144,8 @@ void controller()
 void loop()
 {
   static timeout timer_apicall(g_flashConfig.interval * 1000);
-  static timeout timer_display;
+  static timeout timer_display, timer_init_ds;
+  static int temp_raw = 0;
 
   drd.loop();
   webserver->process();
@@ -1214,23 +1160,56 @@ void loop()
     set_timer(timer_apicall, g_flashConfig.interval * 1000);
   }
 
-  if(isDS18B20ready())
+  if(isDS18B20ready() && temp_raw != DEVICE_DISCONNECTED_RAW)
   {
-    float Temperatur_raw = getTemperature(true);
-    AddToFloatAvg(&Temperature_filtered,Temperatur_raw);
-    Temperatur = GetOutputValue(&Temperature_filtered);
-    DS18B20.requestTemperatures();
-    DSreqTime = millis();
-   }
-  uint16_t raw_data = ADC_.MCP3221_getdata();
-  bool valid_reading = false;
+    getTemperature(temp_raw, true);
+    
+    if (temp_raw != DEVICE_DISCONNECTED_RAW) {
+      median_temp->addValue(temp_raw);
 
-  if(raw_data >= 0x100) {
-    valid_reading = true;
-    if(raw_data >= p_Basic_config_->zero_value_sensor)
-        raw_data -=p_Basic_config_->zero_value_sensor; // Set Zero to 0,5V
-      else
-        raw_data = 0;
+      temp_mean.add(median_temp->getMedian());
+      Temperatur = DS18B20.rawToCelsius(temp_mean.get());
+
+      requestTemp();
+    }
+    else {
+      Serial.println("DS18B20 disconnected? Trying to reinit in 1 sec");
+      set_timer(timer_init_ds, 1000);
+    }
+  }
+
+  if (timer_expired(timer_init_ds) && temp_raw == DEVICE_DISCONNECTED_RAW) {
+      Serial.println("DS18B20 disconnected? Trying to reinit");
+      pinMode(ONE_WIRE_BUS, OUTPUT);
+      digitalWrite(ONE_WIRE_BUS, LOW);
+      delay(100);
+      oneWire->reset();
+
+      if (initDS18B20()) {
+        requestTemp();
+        temp_raw = 0;
+      }
+      else {
+        set_timer(timer_init_ds, 1000);
+      }
+  }
+
+  uint16_t adc_val = ADC_.MCP3221_getdata();
+  median_pressure->addValue(adc_val);
+  adc_mean.add(median_pressure->getMedian());
+
+  int pressure_adc = adc_mean.get();
+
+  Pressure = (pressure_adc - p_Basic_config_->zero_value_sensor) * p_Basic_config_->faktor_pressure;
+
+  double exponent = -10.73797 + (2617.25 / ( Temperatur + 273.15 ));
+  carbondioxide = (float)(((double)Pressure + 1.013) * 10 * exp(exponent));
+
+  bool valid_reading = true;
+
+  if(Pressure < 0) {
+    Pressure = 0;
+    valid_reading = false;
   }
 
   if (configMode) {
@@ -1238,13 +1217,13 @@ void loop()
   }
   else {
     if (valid_reading) {
-      if(raw_data >= p_Basic_config_->value_red)
+      if(Pressure >= p_Basic_config_->value_red)
         set_red();
-      else if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_blue)
+      else if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_blue / 100.f)
         set_blue();
-      else if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_turkis)
+      else if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_turkis / 100.f)
         set_turkis();
-      else if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_green)
+      else if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_green / 100.f)
         set_green();
       else
         set_violet();
@@ -1252,11 +1231,9 @@ void loop()
     else
       blink_red();
   }
-    
-    AddToFloatAvg(&pressure_filtered,((double)raw_data * p_Basic_config_->faktor_pressure));
-    Pressure = GetOutputValue(&pressure_filtered);
-    double exponent = -10.73797 + (2617.25 / ( Temperatur + 273.15 ));
-    carbondioxide = (float)(((double)Pressure + 1.013) * 10 * exp(exponent));
+
+  //  AddToFloatAvg(&pressure_filtered,((double)pressure_adc * p_Basic_config_->faktor_pressure));
+  //  Pressure = GetOutputValue(&pressure_filtered);
 
     if (timer_expired(timer_display)) {
       blink++;
@@ -1282,7 +1259,6 @@ void loop()
             disp->printf("Zeit: %.2f s", p_Statistic_->opening_time/1000);
             disp->setLine(5);
             disp->printf("Anzahl: %d", p_Statistic_->times_open);
-            disp->setLine(6);
             if(p_Controller_->compressed_gas_bottle)
             {
               disp->setLine(7);
@@ -1293,6 +1269,9 @@ void loop()
               disp->setLine(7);
               disp->print("Gaerung       ");
             }
+
+            disp->setLine(6);
+            disp->printf("ADC: %.2d bar  ", pressure_adc);
           }
         }
 

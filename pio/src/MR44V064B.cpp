@@ -2,6 +2,32 @@
 #include "Globals.h"
 #include "MR44V064B.h"
 
+uint32_t crc32_for_byte(uint32_t r) {
+  for(int j = 0; j < 8; ++j)
+    r = (r & 1? 0: (uint32_t)0xEDB88320L) ^ r >> 1;
+  return r ^ (uint32_t)0xFF000000L;
+}
+
+uint32_t crc32(uint32_t crc, uint8_t byte)
+/*******************************************************************/
+{
+int8_t i;
+  crc = crc ^ byte;
+  for(i=7; i>=0; i--)
+    crc=(crc>>1)^(0xedb88320ul & (-(crc&1)));
+  return(crc);
+}
+
+void crc32_array(uint8_t *data, uint16_t n_bytes, uint32_t* crc) {
+  *crc = 0xffffffff;
+  for(uint16_t i=0;i<n_bytes;i++)
+  {
+      *crc = crc32(*crc,*data);
+      data++;
+  }
+}
+
+
 void MR44V064B_Base::write_array(uint8_t *data,uint16_t adress,uint16_t length)
 {
     Wire.beginTransmission(FRAM_adress);
@@ -27,40 +53,65 @@ void MR44V064B_Base::read_array(uint8_t *data,uint16_t adress,uint16_t length)
         *data = Wire.read();
         data++;
     }
-
 }
 
-void MR44V064B_Base::read_controller_parameters(p_controller_t data,uint16_t adress)
+bool MR44V064B_Base::read_array_crc32(uint8_t *data,uint16_t adress,uint16_t length)
 {
-    MR44V064B_Base::read_array((uint8_t *) data, adress, sizeof(controller_t));
+    read_array(data, adress, length);
 
+    uint32_t calculated_crc = 0xffffffff;
+
+    crc32_array(data, length - sizeof(uint32_t), &calculated_crc);
+
+    uint32_t* ptr = (uint32_t*) (data + length - 4);
+
+    uint32_t crc = *ptr;
+
+    return calculated_crc == crc;
 }
-void MR44V064B_Base::read_statistics(p_statistics_t data,uint16_t adress)
-{
-    MR44V064B_Base::read_array((uint8_t *) data, adress, sizeof(statistics_t));
 
+void MR44V064B_Base::write_array_crc32(uint8_t *data,uint16_t adress,uint16_t length)
+{
+    uint32_t calculated_crc = 0xffffffff;
+
+    crc32_array(data, length - sizeof(uint32_t), &calculated_crc);
+
+    uint32_t* ptr = (uint32_t*) (data + length - 4);
+
+    *ptr = calculated_crc;
+
+    Serial.printf("CRC %x fromdata %x\n", calculated_crc,  *ptr);
+    write_array(data, adress, length);
+}
+
+bool MR44V064B_Base::read_controller_parameters(p_controller_t data,uint16_t adress)
+{
+   return read_array_crc32((uint8_t *) data, adress, sizeof(controller_t));
+}
+
+bool MR44V064B_Base::read_statistics(p_statistics_t data,uint16_t adress)
+{
+    return read_array_crc32((uint8_t *) data, adress, sizeof(statistics_t));
 }
 
 void MR44V064B_Base::write_controller_parameters(p_controller_t data,uint16_t adress)
 {
-    MR44V064B_Base::write_array((uint8_t *) data, adress, sizeof(controller_t));
-
+    MR44V064B_Base::write_array_crc32((uint8_t *) data, adress, sizeof(controller_t));
 }
+
 void MR44V064B_Base::write_statistics(p_statistics_t data,uint16_t adress)
 {
-    MR44V064B_Base::write_array((uint8_t *) data, adress, sizeof(statistics_t));
-
+    MR44V064B_Base::write_array_crc32((uint8_t *) data, adress, sizeof(statistics_t));
 }
 
 void MR44V064B_Base::write_basic_config(p_basic_config_t data,uint16_t adress)
 {
-    MR44V064B_Base::write_array((uint8_t *) data, adress, sizeof(basic_config_t));
-
+    MR44V064B_Base::write_array_crc32((uint8_t *) data, adress, sizeof(basic_config_t));
 }
-void MR44V064B_Base::read_basic_config(p_basic_config_t data,uint16_t adress)
-{
-    MR44V064B_Base::read_array((uint8_t *) data, adress, sizeof(basic_config_t));
 
+bool MR44V064B_Base::read_basic_config(p_basic_config_t data,uint16_t adress)
+{
+    return read_array_crc32((uint8_t *) data, adress, sizeof(basic_config_t));
 }
 
 void MR44V064B_Base::reset_settings()

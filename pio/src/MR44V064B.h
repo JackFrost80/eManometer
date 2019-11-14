@@ -28,7 +28,7 @@ statistics_t,*p_statistics_t;
 typedef struct basic_config {
     uint8_t use_regulator;
     uint16_t zero_value_sensor;
-    uint16_t value_red;
+    float value_red;
     float value_blue;
     float value_turkis;
     float value_green;
@@ -49,12 +49,19 @@ class MR44V064B_Base
     public:
     void write_array(uint8_t *data,uint16_t adress,uint16_t length);
     void read_array(uint8_t *data,uint16_t adress,uint16_t length);
+
+    /* last 4 bytes is crc32. Returns true when the read crc matches the calculated one */
+    bool read_array_crc32(uint8_t *data,uint16_t adress,uint16_t length);
+
+    /* last 4 bytes of buffer will be replaced by crc32 of previous bytes */
+    void write_array_crc32(uint8_t *data,uint16_t adress,uint16_t length);
+
     void write_controller_parameters(p_controller_t data,uint16_t adress);
-    void read_controller_parameters(p_controller_t data,uint16_t adress);
+    bool read_controller_parameters(p_controller_t data,uint16_t adress);
     void write_statistics(p_statistics_t data,uint16_t adress);
-    void read_statistics(p_statistics_t data,uint16_t adress);
+    bool read_statistics(p_statistics_t data,uint16_t adress);
     void write_basic_config(p_basic_config_t data,uint16_t adress);
-    void read_basic_config(p_basic_config_t data,uint16_t adress);
+    bool read_basic_config(p_basic_config_t data,uint16_t adress);
     void reset_settings();
 
 

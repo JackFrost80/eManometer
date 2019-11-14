@@ -374,6 +374,50 @@ paramMap parameters = {
       }
     }
   },
+  {
+    "led_value_red",
+    {
+      [] (String& page) {
+        addParam(page, "led_value_red", "Red LED Threshold [> bar]", String(p_Basic_config_->value_red), 12);
+      },
+      [] (const String& arg) {
+        p_Basic_config_->value_red = arg.toInt();
+      }
+    }
+  },
+  {
+    "led_value_blue",
+    {
+      [] (String& page) {
+        addParam(page, "led_value_blue", "Blue LED Threshold [< % of carbonation]", String(p_Basic_config_->value_blue), 12);
+      },
+      [] (const String& arg) {
+        p_Basic_config_->value_blue = arg.toInt();
+      }
+    }
+  },
+  {
+    "led_value_turkis",
+    {
+      [] (String& page) {
+        addParam(page, "led_value_turkis", "Turkis LED Threshold [< % of carbonation]", String(p_Basic_config_->value_turkis), 12);
+      },
+      [] (const String& arg) {
+        p_Basic_config_->value_turkis = arg.toInt();
+      }
+    }
+  },
+  {
+    "led_value_green",
+    {
+      [] (String& page) {
+        addParam(page, "led_value_green", "Green LED Threshold [< % of carbonation]", String(p_Basic_config_->value_green), 12);
+      },
+      [] (const String& arg) {
+        p_Basic_config_->value_green = arg.toInt();
+      }
+    }
+  },
 };
 
 Webserver::Webserver()
@@ -841,7 +885,11 @@ void Webserver::handleConfig()
   std::list<String> configItems = {
     "tempscale", 
     "setpoint_carb", 
-    "setpoint"
+    "setpoint",
+    "led_value_red",
+    "led_value_blue",
+    "led_value_turkis",
+    "led_value_green"
   };
 
   if (g_flashConfig.mode == ModeSpundingValve) {
