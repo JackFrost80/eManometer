@@ -63,7 +63,7 @@ bool MR44V064B_Base::read_array_crc32(uint8_t *data,uint16_t adress,uint16_t len
 
     crc32_array(data, length - sizeof(uint32_t), &calculated_crc);
 
-    uint32_t* ptr = (uint32_t*) (data + length - 4);
+    uint32_t* ptr = (uint32_t*) (data + length - sizeof(uint32_t));
 
     uint32_t crc = *ptr;
 
@@ -76,11 +76,10 @@ void MR44V064B_Base::write_array_crc32(uint8_t *data,uint16_t adress,uint16_t le
 
     crc32_array(data, length - sizeof(uint32_t), &calculated_crc);
 
-    uint32_t* ptr = (uint32_t*) (data + length - 4);
+    uint32_t* ptr = (uint32_t*) (data + length - sizeof(uint32_t));
 
     *ptr = calculated_crc;
 
-    Serial.printf("CRC %x fromdata %x\n", calculated_crc,  *ptr);
     write_array(data, adress, length);
 }
 
