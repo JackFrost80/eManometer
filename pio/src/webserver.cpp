@@ -458,7 +458,7 @@ boolean Webserver::startWebserver()
   server->on("/state", std::bind(&Webserver::handleState, this));
   server->on("/scan", std::bind(&Webserver::handleScan, this));
   server->on("/mnt", std::bind(&Webserver::handleMnt, this));
-  //server->on("/offset", std::bind(&WiFiManager::handleOffset, this));
+  server->on("/zerocal", std::bind(&Webserver::handleZeroCal, this));
   server->on("/reset", std::bind(&Webserver::handleReset, this));
   server->on("/update", HTTP_POST, std::bind(&Webserver::handleUpdateDone, this), std::bind(&Webserver::handleUpdating, this));
   server->onNotFound(std::bind(&Webserver::handleNotFound, this));
@@ -1256,10 +1256,11 @@ void Webserver::handleMnt()
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   page += FPSTR(HTTP_HEAD_END);
-  page += F("<h2>Offset Calibration</h2><br>Before proceeding with calibration make sure the iSpindel is leveled flat, exactly at 0&deg; horizontally and vertically, according to this picture:<br>");
-  page += FPSTR(HTTP_ISPINDEL_IMG);
-  page += F("<br><form action=\"/offset\" method=\"get\"><button class=\"btn\">calibrate</button></form><br/>");
-  page += F("<hr><h2>Firmware Update</h2><br>Firmware updates:<br><a href=\"https://github.com/universam1\">github.com/universam1</a>");
+  page += F("<h2>Zero Point Calibration</h2><br>Current Zero Point AD Offset: ");
+  page += String(p_Basic_config_->zero_value_sensor);
+  page += F("<br>Pressure calibration should be done with the sensor under ambient pressure.");
+  page += F("<br><form action=\"/zerocal\" method=\"get\"><button class=\"btn\">calibrate</button></form><br/>");
+  page += F("<hr><h2>Firmware Update</h2><br>Firmware updates:<br><a href=\"https://github.com/irrwisch1\">github.com/irrwisch1</a><br>");
   page += F("Current Firmware installed:<br><dl>");
   page += F("<dd>Version: ");
   page += FIRMWAREVERSION;
@@ -1278,16 +1279,10 @@ void Webserver::handleMnt()
   DEBUG_WM(F("Sent iSpindel info page"));
 }
 
-#if 0
 /** Handle the info page */
-void WiFiManager::handleOffset()
+void Webserver::handleZeroCal()
 {
-  DEBUG_WM(F("offset"));
-
-
-
-  // we reset the timeout
-  _configPortalStart = millis();
+  DEBUG_WM(F("ZeroCal"));
 
   header();
 
@@ -1297,23 +1292,38 @@ void WiFiManager::handleOffset()
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
 
+  bool ret = zeroPointCal();
   
-  page += F("<META HTTP-EQUIV=\"refresh\" CONTENT=\"120;url=http://192.168.4.1/\">");
+  page += F("<META HTTP-EQUIV=\"refresh\" CONTENT=\"10;url=/\">");
   page += FPSTR(HTTP_HEAD_END);
-  page += F("<h1>calibrate Offset</h1><hr>");
+  page += F("<h1>calibrate Zero Point</h1><hr>");
   page += F("<table>");
   page += F("<tr><td>");
-  page += F("...calibration in progress...<br><h2>DO NOT MOVE OR SHAKE!</h2><br>It takes ~2min to complete. Once complete the iSpindel will restart and the blue LED will switch from continous to blinking");
+
+  if (!ret) {
+    page += F("Error during calibration. Measured values too high. Please make sure the sensor is under ambient pressure.");
+  }
+  else {
+    page += F("Zero Point calibrated to ");
+    page += String(p_Basic_config_->zero_value_sensor);
+  }
+
+  page += F("<br>You will be redirected to the portal page in 10 secs.");
+
   // page += offset.getStatus();
   page += F("</td></tr>");
   page += F("</table>");
 
   page += FPSTR(HTTP_END);
 
+  FRAM.write_basic_config(p_Basic_config_, basic_config_offset);
   server->send(200, "text/html", page);
-  ESP.reset();
+
+  delay(1000);
+
+  if (ret)
+    ESP.reset();
 }
-#endif
 
 /** Handle the state page */
 void Webserver::handleState()

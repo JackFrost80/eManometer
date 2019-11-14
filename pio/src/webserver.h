@@ -263,7 +263,7 @@ private:
   void handleReset();
   void handleNotFound();
   void handleMnt();
-  void handleOffset();
+  void handleZeroCal();
   void handleUpdating();
   void handleUpdateDone();
   boolean captivePortal();

@@ -161,4 +161,6 @@ extern p_basic_config_t p_Basic_config_;
 
 extern MR44V064B_Base FRAM;
 
+extern bool zeroPointCal();
+
 #endif

@@ -31,6 +31,7 @@ All rights reserverd by S.Lang <universam@web.de>
 #include "mean.h"
 
 #include <list>
+#include <map>
 // !DEBUG 1
 
 timer_mgr g_timer_mgr;
@@ -1139,7 +1140,8 @@ void loop()
 
   bool valid_reading = true;
 
-  if(Pressure < 0) {
+  // Sensor probably unplugged when the reading is a few increments below the calibrated zero point
+  if (pressure_adc < p_Basic_config_->zero_value_sensor - 30) {
     Pressure = 0;
     valid_reading = false;
   }
@@ -1220,4 +1222,39 @@ void loop()
   }
 
   prev = now;
+}
+
+// do 100 readings and use the value that was read most often as zero point
+bool zeroPointCal()
+{
+  std::map<int, int> vals;
+
+  for (int i = 0; i <= 100; ++i) {
+    uint16_t val = ADC_.MCP3221_getdata();
+
+    if (val > 0x200) {
+      return false;
+    }
+
+    vals[val]++;
+  }
+
+  int max = 0;
+  int zp = 0;
+
+  for (auto &val: vals) {
+    Serial.printf("Val: %d, count: %d\n", val.first, val.second);
+
+    if (val.second > max) {
+      max = val.second;
+      zp = val.first;
+    }
+    
+  }
+
+  p_Basic_config_->zero_value_sensor = zp;
+
+  Serial.printf("Zero point calibrated to %d (%x)\n", zp, zp);
+
+  return true;
 }
