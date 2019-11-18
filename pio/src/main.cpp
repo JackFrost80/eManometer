@@ -1128,23 +1128,22 @@ void loop()
   }
 
   uint16_t adc_val = ADC_.MCP3221_getdata();
-  median_pressure->addValue(adc_val);
-  adc_mean.add(median_pressure->getMedian());
-
+ // median_pressure->addValue(adc_val);
+ // adc_mean.add(median_pressure->getMedian());
+  adc_mean.add(adc_val);
   int pressure_adc = adc_mean.get();
 
   Pressure = (pressure_adc - p_Basic_config_->zero_value_sensor) * p_Basic_config_->faktor_pressure;
 
-  double exponent = -10.73797 + (2617.25 / ( Temperatur + 273.15 ));
-  carbondioxide = (float)(((double)Pressure + 1.013) * 10 * exp(exponent));
-
   bool valid_reading = true;
-
   // Sensor probably unplugged when the reading is a few increments below the calibrated zero point
   if (pressure_adc < p_Basic_config_->zero_value_sensor - 30) {
     Pressure = 0;
     valid_reading = false;
   }
+
+  double exponent = -10.73797 + (2617.25 / ( Temperatur + 273.15 ));
+  carbondioxide = (float)(((double)Pressure + 1.013) * 10 * exp(exponent));
 
   if (configMode) {
     blink_yellow();
