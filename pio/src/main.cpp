@@ -48,6 +48,9 @@ uint32_t next_vale_calc = 0;
 float opening_time = 0.0;
 uint16_t times_open = 0;
 
+static bool ds_failure = false;
+static timeout timer_init_ds;
+
 #define MosFET D0
 #define LED_RED D4
 #define LED_GREEN D5
@@ -65,7 +68,7 @@ FastRunningMedian<int, 5>* median_temp;
 
 // definitions go here
 MCP3221_Base ADC_;
-OneWire *oneWire;
+OneWire *oneWire = nullptr;
 DallasTemperature DS18B20;
 MR44V064B_Base FRAM; 
 
@@ -960,7 +963,6 @@ void setup()
   bool validConf = readConfig();
   if (!validConf)
     CONSOLELN(F("\nERROR config corrupted"));
-  initDS18B20();
   
   setup_displayInit();
 
@@ -981,9 +983,15 @@ void setup()
   //Pressure = (float((double)raw_data * 0.0030517578125));
 
   // call as late as possible since DS needs converge time
-  int temp;
-  getTemperature(temp, true);
+  int temp = 20;
 
+  if (initDS18B20())
+    getTemperature(temp, true);
+  else {
+    ds_failure = true;
+    set_timer(timer_init_ds, 1000);
+  }
+  
   median_temp = new FastRunningMedian<int, 5>(temp);
   median_pressure = new FastRunningMedian<uint16_t, 5>(raw_data);
   adc_mean.init(10, raw_data);
@@ -1011,7 +1019,6 @@ void setup()
   {
     CONSOLE(F("IP: "));
     CONSOLELN(WiFi.localIP());
-    uploadData();
   }
   else
   {
@@ -1077,7 +1084,7 @@ void loop()
   unsigned long looptime = now - prev;
 
   static timeout timer_apicall(g_flashConfig.interval * 1000);
-  static timeout timer_display, timer_init_ds;
+  static timeout timer_display;
   static int temp_raw = 0;
 
   drd.loop();
@@ -1093,11 +1100,12 @@ void loop()
     set_timer(timer_apicall, g_flashConfig.interval * 1000);
   }
 
-  if(isDS18B20ready() && temp_raw != DEVICE_DISCONNECTED_RAW)
+  if(isDS18B20ready() && !ds_failure)
   {
     getTemperature(temp_raw, true);
     
     if (temp_raw != DEVICE_DISCONNECTED_RAW) {
+      ds_failure = false;
       median_temp->addValue(temp_raw);
 
       temp_mean.add(median_temp->getMedian());
@@ -1106,21 +1114,23 @@ void loop()
       requestTemp();
     }
     else {
+      ds_failure = true;
       Serial.println("DS18B20 disconnected? Trying to reinit in 1 sec");
       set_timer(timer_init_ds, 1000);
     }
   }
 
-  if (timer_expired(timer_init_ds) && temp_raw == DEVICE_DISCONNECTED_RAW) {
+  if (timer_expired(timer_init_ds) && ds_failure) {
       Serial.println("DS18B20 disconnected? Trying to reinit");
       pinMode(ONE_WIRE_BUS, OUTPUT);
       digitalWrite(ONE_WIRE_BUS, LOW);
       delay(100);
-      oneWire->reset();
+      if (oneWire)
+        oneWire->reset();
 
       if (initDS18B20()) {
         requestTemp();
-        temp_raw = 0;
+        ds_failure = false;
       }
       else {
         set_timer(timer_init_ds, 1000);
@@ -1149,7 +1159,7 @@ void loop()
     blink_yellow();
   }
   else {
-    if (valid_reading) {
+    if (valid_reading && !ds_failure) {
       if(Pressure >= p_Basic_config_->value_red)
         set_red();
       else if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_blue / 100.f)
