@@ -17,7 +17,7 @@
 #include <Ticker.h>
 
 // defines go here
-#define FIRMWAREVERSION "0.7.6b"
+#define FIRMWAREVERSION "0.8.0"
 
 #ifndef DEBUG
 #define DEBUG true
@@ -60,7 +60,7 @@
 #define MEDIANAVRG MEDIANROUNDSMIN
 #define MEDIAN_MAX_SIZE MEDIANROUNDSMAX
 
-#define CBP_ENDPOINT "/api/hydrometer/v1/data"
+#define CBP_ENDPOINT "/api/emanometer/v1/data"
 
 enum RemoteAPI {
     API_Off = 0,
