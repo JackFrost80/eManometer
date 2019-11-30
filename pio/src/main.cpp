@@ -1200,7 +1200,7 @@ void loop()
         errStr += "Pressure ";
       }
       if (ds_failure) {
-        errStr += "S18B20 ";
+        errStr += "DS18B20 ";
       }
       if (fram_err == 1) {
         errStr += "FRAM I2C";
