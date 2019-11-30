@@ -124,3 +124,31 @@ void MR44V064B_Base::reset_settings()
     }
     Wire.endTransmission();
 }
+
+bool MR44V064B_Base::test_fram()
+{
+    uint32_t testaddr = 0xfffc;
+    uint32_t zero = 0;
+    uint32_t deadbeef = 0xDEADBEEF;
+
+    write_array((uint8_t*) &zero, testaddr, 4);
+
+    zero = 0xdeadbeef;
+    read_array((uint8_t*) &zero, testaddr, 4);
+
+    if (zero != 0) {
+        return false;
+    }
+
+    write_array((uint8_t*) &deadbeef, testaddr, 4);
+
+    deadbeef = 0;
+
+    read_array((uint8_t*) &deadbeef, testaddr, 4);
+
+    if (deadbeef != 0xDEADBEEF) {
+        return false;
+    }
+
+    return true;
+}

@@ -65,6 +65,8 @@ class MR44V064B_Base
     void reset_settings();
 
 
+    bool test_fram();
+
 
     protected:
 

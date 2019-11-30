@@ -887,8 +887,23 @@ void setup_ledTest()
   digitalWrite(LED_BLUE,0);
 }
 
+int fram_err = 0;
+
 void setup_FRAM_init()
 {
+  Wire.beginTransmission(0x50);
+  uint8_t error = Wire.endTransmission();
+
+  if (error != 0) {
+    Serial.print("ERROR: FRAM I2C Address probe failed");
+    fram_err = 1;
+  }
+
+  if (!FRAM.test_fram()) {
+    Serial.print("ERROR: Failed to write and read back test string to FRAM. Please check your hardware");
+    fram_err = 2;
+  }
+
   if (!FRAM.read_controller_parameters(p_Controller_,Controller_paramter_offset)) {
       CONSOLELN("FRAM Controller Config CRC mismatch..resetting to defaults");
       set_red();
@@ -1159,7 +1174,7 @@ void loop()
     blink_yellow();
   }
   else {
-    if (valid_reading && !ds_failure) {
+    if (valid_reading && !ds_failure && fram_err == 0) {
       if(Pressure >= p_Basic_config_->value_red)
         set_red();
       else if(carbondioxide < p_Controller_->setpoint_carbondioxide * p_Basic_config_->value_blue / 100.f)
@@ -1179,43 +1194,64 @@ void loop()
   //  Pressure = GetOutputValue(&pressure_filtered);
 
     if (timer_expired(timer_display)) {
+      String errStr;
+
+      if (!valid_reading) {
+        errStr += "Pressure ";
+      }
+      if (ds_failure) {
+        errStr += "S18B20 ";
+      }
+      if (fram_err == 1) {
+        errStr += "FRAM I2C";
+      }
+      if (fram_err == 2) {
+        errStr += "FRAM";
+      }
+
+
       blink++;
       if (disp) {
         disp->clear();
         disp->setLine(0);
         disp_print_header();
 
-        if (configMode) {
+        if (errStr.length() > 0) {
           disp->setLine(1);
+          disp->print(("ERROR: " + errStr).c_str());
+        }
+
+        if (configMode) {
+          disp->setLine(2);
           disp->printf("WiFi Config Mode");
         }
         else {
-          disp->setLine(1);
-          disp->printf("Druck: %.2f bar  ", Pressure);
           disp->setLine(2);
-          disp->printf("Temp: %.2f 'C", Temperatur);
+          disp->printf("Druck: %.2f bar  ", Pressure);
           disp->setLine(3);
+          disp->printf("Temp: %.2f 'C", Temperatur);
+          disp->setLine(4);
           disp->printf("CO2: %.2f g/l  ", carbondioxide);
 
           if (g_flashConfig.mode == ModeSpundingValve) {
-            disp->setLine(4);
-            disp->printf("Zeit: %.2f s", p_Statistic_->opening_time/1000);
             disp->setLine(5);
+            disp->printf("Zeit: %.2f s", p_Statistic_->opening_time/1000);
+            disp->setLine(6);
             disp->printf("Anzahl: %d", p_Statistic_->times_open);
             if(p_Controller_->compressed_gas_bottle)
             {
-              disp->setLine(7);
+              disp->setLine(8);
               disp->print("CO2 Flasche");
             }
             else
             {
-              disp->setLine(7);
+              disp->setLine(8);
               disp->print("Gaerung       ");
             }
 
             // for performance debugging, display the time in microseconds the last loop
             // took
-            //disp->setLine(6);
+            //disp->setLine(2);
             //disp->printf("looptime: %d us ", looptime);
           }
         }

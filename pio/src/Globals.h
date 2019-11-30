@@ -17,7 +17,7 @@
 #include <Ticker.h>
 
 // defines go here
-#define FIRMWAREVERSION "0.8.0"
+#define FIRMWAREVERSION "0.8.1"
 
 #ifndef DEBUG
 #define DEBUG true
