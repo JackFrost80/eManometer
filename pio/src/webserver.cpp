@@ -106,6 +106,8 @@ void validateInput(String input, String& output)
   output = input;
 }
 
+bool g_flashChanged = false;
+
 // Map Holding all possible Configuration Parameters
 // First item is the internal name of the Parameter
 // Second a function to be called to generete html for the parameter
@@ -130,6 +132,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         validateInput(arg, g_flashConfig.name);
+        g_flashChanged = true;
       }
     }
   },
@@ -141,6 +144,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         g_flashConfig.interval = arg.toInt();
+        g_flashChanged = true;
       }
     }
   },
@@ -152,6 +156,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         g_flashConfig.api = arg.toInt();
+        g_flashChanged = true;
       }
     }
   },
@@ -163,6 +168,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         validateInput(arg, g_flashConfig.token);
+        g_flashChanged = true;
       }
     }
   },
@@ -174,6 +180,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         validateInput(arg, g_flashConfig.server);
+        g_flashChanged = true;
       }
     }
   },
@@ -185,6 +192,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         g_flashConfig.port = arg.toInt();
+        g_flashChanged = true;
       }
     }
   },
@@ -196,6 +204,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         validateInput(arg, g_flashConfig.url);
+        g_flashChanged = true;
       }
     }
   },
@@ -207,6 +216,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         validateInput(arg, g_flashConfig.db);
+        g_flashChanged = true;
       }
     }
   },
@@ -218,6 +228,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         validateInput(arg, g_flashConfig.username);
+        g_flashChanged = true;
       }
     }
   },
@@ -229,6 +240,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         validateInput(arg, g_flashConfig.password);
+        g_flashChanged = true;
       }
     }
   },
@@ -240,6 +252,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         validateInput(arg, g_flashConfig.job);
+        g_flashChanged = true;
       }
     }
   },
@@ -251,6 +264,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         validateInput(arg, g_flashConfig.instance);
+        g_flashChanged = true;
       }
     }
   },
@@ -262,6 +276,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         g_flashConfig.tempscale = (TempUnits) arg.toInt();
+        g_flashChanged = true;
       }
     }
   },
@@ -272,7 +287,7 @@ paramMap parameters = {
         addParam(page, "setpoint_carb", "Target Carbonation [g/l]", String(p_Controller_->setpoint_carbondioxide), 12);
       },
       [] (const String& arg) {
-        p_Controller_->setpoint_carbondioxide = arg.toInt();
+        p_Controller_->setpoint_carbondioxide = arg.toDouble();
       }
     }
   },
@@ -283,7 +298,7 @@ paramMap parameters = {
         addParam(page, "setpoint", "Target Pressure [bar]", String(p_Controller_->Setpoint), 12);
       },
       [] (const String& arg) {
-        p_Controller_->Setpoint = arg.toInt();
+        p_Controller_->Setpoint = arg.toFloat();
       }
     }
   },
@@ -294,7 +309,7 @@ paramMap parameters = {
         addParam(page, "controller_p_value", "Controller P Value", String(p_Controller_->Kp), 12);
       },
       [] (const String& arg) {
-        p_Controller_->Kp = arg.toInt();
+        p_Controller_->Kp = arg.toFloat();
       }
     }
   },
@@ -316,7 +331,7 @@ paramMap parameters = {
         addParam(page, "dead_zone", "Dead Zone [bar]", String(p_Controller_->dead_zone), 12);
       },
       [] (const String& arg) {
-        p_Controller_->dead_zone = arg.toInt();
+        p_Controller_->dead_zone = arg.toFloat();
       }
     }
   },
@@ -356,6 +371,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         g_flashConfig.mode = (eManometerMode) arg.toInt();
+        g_flashChanged = true;
       }
     }
   },
@@ -371,6 +387,7 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         g_flashConfig.display = (DisplayType) arg.toInt();
+        g_flashChanged = true;
       }
     }
   },
@@ -381,7 +398,7 @@ paramMap parameters = {
         addParam(page, "led_value_red", "Red LED Threshold [> bar]", String(p_Basic_config_->value_red), 12);
       },
       [] (const String& arg) {
-        p_Basic_config_->value_red = arg.toInt();
+        p_Basic_config_->value_red = arg.toFloat();
       }
     }
   },
@@ -392,7 +409,7 @@ paramMap parameters = {
         addParam(page, "led_value_blue", "Blue LED Threshold [< % of carbonation]", String(p_Basic_config_->value_blue), 12);
       },
       [] (const String& arg) {
-        p_Basic_config_->value_blue = arg.toInt();
+        p_Basic_config_->value_blue = arg.toFloat();
       }
     }
   },
@@ -403,7 +420,7 @@ paramMap parameters = {
         addParam(page, "led_value_turkis", "Turkis LED Threshold [< % of carbonation]", String(p_Basic_config_->value_turkis), 12);
       },
       [] (const String& arg) {
-        p_Basic_config_->value_turkis = arg.toInt();
+        p_Basic_config_->value_turkis = arg.toFloat();
       }
     }
   },
@@ -414,7 +431,7 @@ paramMap parameters = {
         addParam(page, "led_value_green", "Green LED Threshold [< % of carbonation]", String(p_Basic_config_->value_green), 12);
       },
       [] (const String& arg) {
-        p_Basic_config_->value_green = arg.toInt();
+        p_Basic_config_->value_green = arg.toFloat();
       }
     }
   },
@@ -1077,8 +1094,13 @@ void Webserver::handleConfigSave()
   page += FPSTR(HTTP_SAVED2);
   page += FPSTR(HTTP_END);
 
-  saveConfig();
+  if (g_flashChanged) {
+    saveConfig();
+    g_flashChanged = false;
+  }
+
   FRAM.write_basic_config(p_Basic_config_, basic_config_offset);
+  FRAM.write_controller_parameters(p_Controller_, Controller_paramter_offset);
 
   server->send(200, "text/html", page);
 
