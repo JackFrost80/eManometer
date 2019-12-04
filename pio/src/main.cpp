@@ -1240,12 +1240,12 @@ void loop()
             disp->printf("Anzahl: %d", p_Statistic_->times_open);
             if(p_Controller_->compressed_gas_bottle)
             {
-              disp->setLine(8);
+              disp->setLine(7);
               disp->print("CO2 Flasche");
             }
             else
             {
-              disp->setLine(8);
+              disp->setLine(7);
               disp->print("Gaerung       ");
             }
 
