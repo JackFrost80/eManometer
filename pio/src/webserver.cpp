@@ -320,7 +320,7 @@ paramMap parameters = {
         addParam(page, "opening_time", "Mininum valve open time [ms]", String(p_Controller_->min_open_time), 12);
       },
       [] (const String& arg) {
-        p_Controller_->open_time = arg.toInt();
+        p_Controller_->min_open_time = arg.toInt();
       }
     }
   },
