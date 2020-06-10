@@ -1,9 +1,12 @@
 #include "MCP3221A5T-E.h"
-#include "I2Cdev.h"
+#include <Wire.h>
+#include <Arduino.h>
+
+#define MCP3221_I2C_ADDRESS 0x4D
 
 MCP3221_Base::MCP3221_Base()
 {
-    devAddr = MCP3221A5T_DEFAULT_ADDRESS + 1;
+    devAddr = MCP3221_I2C_ADDRESS;
 }
 
 /** Specific address constructor.
@@ -19,6 +22,7 @@ MCP3221_Base::MCP3221_Base(uint8_t address)
 
 void MCP3221_Base::MCP3221_init()
 {
+    #if 0
     pinMode(D1,INPUT);
     digitalWrite(D1,0);
     for(uint8 i =0;i<18;i++)
@@ -33,13 +37,14 @@ void MCP3221_Base::MCP3221_init()
     Wire.begin(D2, D1);
     Wire.setClock(100000);
     Wire.setClockStretchLimit(2 * 230);
+    #endif
     
 }
 
 uint16_t MCP3221_Base::MCP3221_getdata()
 {
     uint8_t count = 0;
-    Wire.requestFrom(I2C_adress,2,1);
+    Wire.requestFrom(devAddr,2,1);
     while(Wire.available())
     {
         buffer[count] = Wire.read();

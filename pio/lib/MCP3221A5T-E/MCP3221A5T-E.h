@@ -1,14 +1,7 @@
-#ifndef _MCP3221A5T-E_H_
-#define _MCP3221A5T-E_H_
+#ifndef _MCP3221A5T_E_H_
+#define _MCP3221A5T_E_H_
 
-#include "I2Cdev.h"
-
-
-#define I2C_adress 0x4D
-
-
-#define MCP3221A5T_DEFAULT_ADDRESS 0x9A
-
+#include <stdint.h>
 
 class MCP3221_Base
 {
