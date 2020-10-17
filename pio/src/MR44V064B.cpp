@@ -8,7 +8,7 @@ uint32_t crc32_for_byte(uint32_t r) {
   return r ^ (uint32_t)0xFF000000L;
 }
 
-uint32_t crc32(uint32_t crc, uint8_t byte)
+uint32_t crc32_(uint32_t crc, uint8_t byte)
 /*******************************************************************/
 {
 int8_t i;
@@ -18,11 +18,11 @@ int8_t i;
   return(crc);
 }
 
-void crc32_array(uint8_t *data, uint16_t n_bytes, uint32_t* crc) {
+void crc32_array_(uint8_t *data, uint16_t n_bytes, uint32_t* crc) {
   *crc = 0xffffffff;
   for(uint16_t i=0;i<n_bytes;i++)
   {
-      *crc = crc32(*crc,*data);
+      *crc = crc32_(*crc,*data);
       data++;
   }
 }
@@ -61,7 +61,7 @@ bool MR44V064B_Base::read_array_crc32(uint8_t *data,uint16_t adress,uint16_t len
 
     uint32_t calculated_crc = 0xffffffff;
 
-    crc32_array(data, length - sizeof(uint32_t), &calculated_crc);
+    crc32_array_(data, length - sizeof(uint32_t), &calculated_crc);
 
     uint32_t* ptr = (uint32_t*) (data + length - sizeof(uint32_t));
 
@@ -74,7 +74,7 @@ void MR44V064B_Base::write_array_crc32(uint8_t *data,uint16_t adress,uint16_t le
 {
     uint32_t calculated_crc = 0xffffffff;
 
-    crc32_array(data, length - sizeof(uint32_t), &calculated_crc);
+    crc32_array_(data, length - sizeof(uint32_t), &calculated_crc);
 
     uint32_t* ptr = (uint32_t*) (data + length - sizeof(uint32_t));
 
