@@ -184,18 +184,6 @@ paramMap parameters = {
       }
     }
   },
-   {
-    "address_default",
-    {
-      [] (String& page) {
-        addParam(page, "address_default", "Default Address", g_flashConfig.default_ip, 128);
-      },
-      [] (const String& arg) {
-        validateInput(arg, g_flashConfig.default_ip);
-        g_flashChanged = true;
-      }
-    }
-  },
   {
     "port",
     {
@@ -337,6 +325,17 @@ paramMap parameters = {
     }
   },
   {
+    "maximum_openings",
+    {
+      [] (String& page) {
+        addParam(page, "maximum_openings", "Maximum opening times", String(p_Controller_->maximum_openings), 12);
+      },
+      [] (const String& arg) {
+        p_Controller_->maximum_openings = arg.toInt();
+      }
+    }
+  },
+  {
     "dead_zone",
     {
       [] (String& page) {
@@ -394,7 +393,9 @@ paramMap parameters = {
         addList(page, "display", "Display Type", (int) g_flashConfig.display, {
           {0, "None"},
           {1, "SSD1306"},
-          {2, "SH1106"}
+          {2, "SH1106"},
+          {3, "HD44780"},
+          {1, "SSD1306 experimental"}
         });
       },
       [] (const String& arg) {
@@ -444,94 +445,6 @@ paramMap parameters = {
       },
       [] (const String& arg) {
         p_Basic_config_->value_green = arg.toFloat();
-      }
-    }
-  },
-  {
-    "einmaischen",
-    {
-      [] (String& page) {
-        addParam(page, "einmaischen", "Temperatur einmaischen [°C]", String(p_recipe->temperatur_mash), 12);
-      },
-      [] (const String& arg) {
-        p_recipe->temperatur_mash = arg.toFloat();
-      }
-    }
-  },
-  {
-    "Rast_1",
-    {
-      [] (String& page) {
-        addParam(page, "Rast_1", "1. Rast [°C]", String(p_recipe->rast_temp[0]), 12);
-      },
-      [] (const String& arg) {
-        p_recipe->rast_temp[0] = arg.toFloat();
-      }
-    }
-  },
-  {
-    "Rast_2",
-    {
-      [] (String& page) {
-        addParam(page, "Rast_2", "2. Rast [°C]", String(p_recipe->rast_temp[1]), 12);
-      },
-      [] (const String& arg) {
-        p_recipe->rast_temp[1] = arg.toFloat();
-      }
-    }
-  },
-  {
-    "Rast_3",
-    {
-      [] (String& page) {
-        addParam(page, "Rast_3", "3. Rast [°C]", String(p_recipe->rast_temp[2]), 12);
-      },
-      [] (const String& arg) {
-        p_recipe->rast_temp[2] = arg.toFloat();
-      }
-    }
-  },
-  {
-    "Rast_4",
-    {
-      [] (String& page) {
-        addParam(page, "Rast_4", "4. Rast [°C]", String(p_recipe->rast_temp[3]), 12);
-      },
-      [] (const String& arg) {
-        p_recipe->rast_temp[2] = arg.toFloat();
-      }
-    }
-  },
-  {
-    "Rast_5",
-    {
-      [] (String& page) {
-        addParam(page, "Rast_54", "5. Rast [°C]", String(p_recipe->rast_temp[4]), 12);
-      },
-      [] (const String& arg) {
-        p_recipe->rast_temp[2] = arg.toFloat();
-      }
-    }
-  },
-  {
-    "Rast_6",
-    {
-      [] (String& page) {
-        addParam(page, "Rast_6", "6. Rast [°C]", String(p_recipe->rast_temp[5]), 12);
-      },
-      [] (const String& arg) {
-        p_recipe->rast_temp[2] = arg.toFloat();
-      }
-    }
-  },
-  {
-    "Rast_7",
-    {
-      [] (String& page) {
-        addParam(page, "Rast_7", "7. Rast [°C]", String(p_recipe->rast_temp[6]), 12);
-      },
-      [] (const String& arg) {
-        p_recipe->rast_temp[2] = arg.toFloat();
       }
     }
   },
@@ -929,21 +842,7 @@ void Webserver::handleHWConfig()
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h2>Hardware Config</h2>");
 
-  //genConfigPage(page, {"emanometer_mode", "display"});
-  genConfigPage(page, { 
-    "Rast_1", 
-    "Rast_2", 
-    "Rast_3", 
-    "Rast_4", 
-    "Rast_5", 
-    "port", 
-    "url", 
-    "db", 
-    "username", 
-    "password", 
-    "job", 
-    "instance" 
-  });
+  genConfigPage(page, {"emanometer_mode", "display"});
 
   page += FPSTR(HTTP_END);
 
@@ -985,7 +884,6 @@ void Webserver::handleAPIConfig()
     "api", 
     "token", 
     "address", 
-    "address_default",
     "port", 
     "url", 
     "db", 
@@ -1007,12 +905,12 @@ void Webserver::handleConfig()
 {
   header();
   String page = FPSTR(HTTP_HEAD_HTML);
-  page.replace("{v}", "WLAN-Gateway Config");
+  page.replace("{v}", "eManometer Config");
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
   page += FPSTR(HTTP_HEAD_END);
-  page += F("<h2>WLAN-Gateway Config</h2>");
+  page += F("<h2>eManometer Config</h2>");
 
   std::list<String> configItems = {
     "tempscale", 
@@ -1032,7 +930,15 @@ void Webserver::handleConfig()
       "cycle_time", 
       "pressure_source"
     });
+    if(p_Controller_->compressed_gas_bottle == true)
+    {
+      configItems.insert(configItems.end(), {
+       "maximum_openings" 
+      });
+    }
   }
+
+
 
   genConfigPage(page, configItems);
 
@@ -1324,17 +1230,17 @@ void Webserver::handleiSpindel()
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h1>Info</h1><hr>");
   page += F("<h3><table>");
-  page += F("<tr><td>Setpoint:</td><td>");
+  page += F("<tr><td>Pressure:</td><td>");
   page += F("<div class=\"info-pressure\" />");;
   page += F("<tr><td>Temperature:</td><td>");
   page += F("<div class=\"info-temperature\" />");
-  page += F("<tr><td>gradient:</td><td>");
+  page += F("<tr><td>CO2:</td><td>");
   page += F("<div class=\"info-co2\" />");
 
   if (g_flashConfig.mode == ModeSpundingValve) {
-    page += F("<tr><td>Time left:</td><td>");
+    page += F("<tr><td>Valve open time:</td><td>");
     page += F("<div class=\"info-opening-time\" />");
-    page += F("<tr><td>CV:</td><td>");
+    page += F("<tr><td>Num of openings:</td><td>");
     page += F("<div class=\"info-num-openings\" />");
   }
   page += F("</td></tr>");
@@ -1357,23 +1263,23 @@ void Webserver::handleiSpindel()
 
 void Webserver::handleAjaxRefresh()
 {
-  DynamicJsonDocument doc(4096);
+  DynamicJsonDocument doc(1024);
 
   char buf[64];
 
-  snprintf(buf, sizeof(buf), "%.2f °C", Temperatur);
+  snprintf(buf, sizeof(buf), "%.2f °%s", scaleTemperature(Temperatur), tempScaleLabel().c_str());
   doc["temperature"] = buf;
 
-  snprintf(buf, sizeof(buf), "%.2f °C", Setpoint);
+  snprintf(buf, sizeof(buf), "%.2f bar", Pressure);
   doc["pressure"] = buf;
 
-  snprintf(buf, sizeof(buf), "%.2f °C/min", gradient);
+  snprintf(buf, sizeof(buf), "%.2f g/l", carbondioxide);
   doc["co2"] = buf;
 
   snprintf(buf, sizeof(buf), "%.2f s", p_Statistic_->opening_time / 1000);
-  doc["opening-time"] = output;
+  doc["opening-time"] = buf;
 
-  doc["num-openings"] = time_left;
+  doc["num-openings"] = p_Statistic_->times_open;
 
   String page;
   serializeJson(doc, page);
@@ -1419,7 +1325,47 @@ void Webserver::handleMnt()
 /** Handle the info page */
 void Webserver::handleZeroCal()
 {
+  DEBUG_WM(F("ZeroCal"));
+
+  header();
+
+  String page = FPSTR(HTTP_HEAD_HTML);
+  page.replace("{v}", "calibrate Offset");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  page += _customHeadElement;
+
+  bool ret = zeroPointCal();
   
+  page += F("<META HTTP-EQUIV=\"refresh\" CONTENT=\"10;url=/\">");
+  page += FPSTR(HTTP_HEAD_END);
+  page += F("<h1>calibrate Zero Point</h1><hr>");
+  page += F("<table>");
+  page += F("<tr><td>");
+
+  if (!ret) {
+    page += F("Error during calibration. Measured values too high. Please make sure the sensor is under ambient pressure.");
+  }
+  else {
+    page += F("Zero Point calibrated to ");
+    page += String(p_Basic_config_->zero_value_sensor);
+  }
+
+  page += F("<br>You will be redirected to the portal page in 10 secs.");
+
+  // page += offset.getStatus();
+  page += F("</td></tr>");
+  page += F("</table>");
+
+  page += FPSTR(HTTP_END);
+
+  FRAM.write_basic_config(p_Basic_config_, basic_config_offset);
+  server->send(200, "text/html", page);
+
+  delay(1000);
+
+  if (ret)
+    ESP.reset();
 }
 
 /** Handle the state page */

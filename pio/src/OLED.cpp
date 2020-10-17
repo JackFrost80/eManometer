@@ -287,7 +287,7 @@ switch(display)
 			sendCommand(0x30);    // | Vpp);    /*0X30---0X33  set VPP   9V liangdu!!!!*/
 			sendCommand(0xC8);    /*Com scan direction*/
 			sendCommand(0xD3);    /*set display offset*/
-			sendCommand(0x00);   /*   0x20  */
+			sendCommand(0x01);   /*   0x20  17.10.2020 set from 0x00 to 0x01 due to fragment in first line*/ 
 			sendCommand(0xD5);    /*set osc division*/
 			sendCommand(0x80);
 			sendCommand(0xD9);    /*set pre-charge period*/

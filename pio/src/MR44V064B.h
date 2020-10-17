@@ -14,6 +14,9 @@ typedef struct controller {
     uint16_t calc_time;
     uint32_t open_time;
     uint32_t close_time;
+    uint32_t maximum_openings;
+    float theoretical_volume;
+    float volume_barrel;
     bool compressed_gas_bottle;
     uint32_t crc32;
 } controller_t,*p_controller_t;
@@ -21,6 +24,9 @@ typedef struct controller {
 typedef struct statistics {
     float opening_time;
     uint32_t times_open;
+    float volume_co2;
+    float mass_co2;
+    float theoretical_carbonisation;
     uint32_t crc32;
 }
 statistics_t,*p_statistics_t;

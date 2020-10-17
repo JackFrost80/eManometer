@@ -137,7 +137,7 @@ const char HTTP_FORM_LIST[] PROGMEM = "<select id=\"{i}\" name=\"{n}\" placehold
 const char HTTP_FORM_END[] PROGMEM = "<button class=\"btn\" type=\"submit\">save</button></form>";
 const char HTTP_BACK_BTN[] PROGMEM = "<form action=\"/\"><button class=\"btn\" type=\"submit\">Back to Portal</button></form>";
 const char HTTP_SAVED[] PROGMEM = "<div class=\"msg\"><strong>Credentials Saved</strong><br>Trying to connect ESP to the {x} network.<br>Give it 10 seconds or so and check <a href=\"/\">how it went.</a> <p/>The {v} you are connected to will be restarted on the radio channel of the {x} network and continue in normal mode thus not being accessible until manually resetted to configuration mode.";
-const char HTTP_SAVED2[] PROGMEM = "<div class=\"msg\"><strong>Settings Saved</strong><br>WLAN-Gateway will be rebooted. Page will be redirected in 10 seconds";
+const char HTTP_SAVED2[] PROGMEM = "<div class=\"msg\"><strong>Settings Saved</strong><br>eManometer will be rebooted. Page will be redirected in 10 seconds";
 const char HTTP_END[] PROGMEM = "</div></body></html>";
 const char HTTP_UPDATE_FAI[] PROGMEM = "Update Failed!";
 const char HTTP_UPDATE_SUC[] PROGMEM = "Update Success! Rebooting...";
@@ -211,7 +211,7 @@ private:
   void startWPS();
   char *getStatus(int status);
 
-  const char *_apName = "WLAN-Gateway";
+  const char *_apName = "eManometer";
   const char *_apPassword = NULL;
   unsigned long _configPortalTimeout = 0;
   unsigned long _connectTimeout = 0;
