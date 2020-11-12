@@ -1463,7 +1463,7 @@ void Webserver::handleReset()
   delay(1000);
   WiFi.disconnect(true); // Wipe out WiFi credentials.
   resetSettings();
-  formatSpiffs();
+  formatLittleFS();
   FRAM.reset_settings();
   ESP.reset();
   delay(2000);

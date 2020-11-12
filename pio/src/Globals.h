@@ -17,7 +17,7 @@
 #include <Ticker.h>
 
 // defines go here
-#define FIRMWAREVERSION "0.9.2"
+#define FIRMWAREVERSION "1.0.0"
 
 #ifndef DEBUG
 #define DEBUG true
@@ -98,7 +98,7 @@ extern std::vector<String> RemoteAPILabels;
 extern float Temperatur, Tilt, Gravity,Pressure,carbondioxide;
 
 extern bool saveConfig();
-extern void formatSpiffs();
+extern void formatLittleFS();
 extern void validateInput(const char *input, char *output);
 
 float scaleTemperature(float t);

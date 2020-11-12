@@ -17,7 +17,8 @@ All rights reserverd by S.Lang <universam@web.de>
 #include "webserver.h"
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
 
-#include <FS.h>          //this needs to be first
+#include "LittleFS.h"
+//#include <FS.h>          //this needs to be first
 #include "MCP3221A5T-E.h"
 #include "MR44V064B.h"
 #include "OLED.h"
@@ -259,14 +260,14 @@ bool readConfig()
 {
   CONSOLE(F("mounting FS..."));
 
-  if (SPIFFS.begin())
+  if (LittleFS.begin())
   {
     CONSOLELN(F(" mounted!"));
-    if (SPIFFS.exists(CFGFILE))
+    if (LittleFS.exists(CFGFILE))
     {
       // file exists, reading and loading
       CONSOLELN(F("reading config file"));
-      File configFile = SPIFFS.open(CFGFILE, "r");
+      File configFile = LittleFS.open(CFGFILE, "r");
       if (configFile)
       {
         size_t size = configFile.size();
@@ -415,22 +416,22 @@ String htmlencode(String str)
   return encodedstr;
 }
 
-void formatSpiffs()
+void formatLittleFS()
 {
-  CONSOLE(F("\nneed to format SPIFFS: "));
-  SPIFFS.end();
-  SPIFFS.begin();
-  CONSOLELN(SPIFFS.format());
+  CONSOLE(F("\nneed to format LittleFS: "));
+  LittleFS.end();
+  LittleFS.begin();
+  CONSOLELN(LittleFS.format());
 }
 
 bool saveConfig()
 {
   CONSOLE(F("saving config..."));
 
-  // if SPIFFS is not usable
-  if (!SPIFFS.begin() || !SPIFFS.exists(CFGFILE) ||
-      !SPIFFS.open(CFGFILE, "w"))
-    formatSpiffs();
+  // if LittleFS is not usable
+  if (!LittleFS.begin() || !LittleFS.exists(CFGFILE) ||
+      !LittleFS.open(CFGFILE, "w"))
+    formatLittleFS();
 
   DynamicJsonDocument doc(1024);
 
@@ -455,11 +456,11 @@ bool saveConfig()
   doc["Mode"] = (int) g_flashConfig.mode;
   doc["Display"] = (int) g_flashConfig.display;
 
-  File configFile = SPIFFS.open(CFGFILE, "w+");
+  File configFile = LittleFS.open(CFGFILE, "w+");
   if (!configFile)
   {
     CONSOLELN(F("failed to open config file for writing"));
-    SPIFFS.end();
+    LittleFS.end();
     return false;
   }
   else
@@ -469,7 +470,7 @@ bool saveConfig()
 #endif
     serializeJson(doc, configFile);
     configFile.close();
-    SPIFFS.end();
+    LittleFS.end();
     CONSOLELN(F("saved successfully"));
     return true;
   }
@@ -1299,6 +1300,13 @@ void loop()
             disp->setLine(7);
             disp->printf("th.CO2: %.2f g/l  ", p_Statistic_->theoretical_carbonisation);
           }
+          else
+          {
+            disp->setLine(7);
+            // String test = g_flashConfig.name + " / " + WiFi.localIP().toString(); // 
+            disp->printf("%s",g_flashConfig.name.c_str());
+          }
+          
         }
         
 
@@ -1308,15 +1316,15 @@ void loop()
         }
         else {
           disp->setLine(0);
-          disp->printf("Druck: %.2f bar  ", Pressure);
+          disp->printf("Druck: %10.2f bar", Pressure);
           disp->setLine(1);
-          disp->printf("Temp: %.2f 'C", Temperatur);
+          disp->printf("Temp: %11.2f °C", Temperatur);
           disp->setLine(2);
-          disp->printf("CO2: %6.2f g/l  ", carbondioxide);
+          disp->printf("CO2: %12.2f g/l", carbondioxide);
 
           if (g_flashConfig.mode == ModeSpundingValve) {
             disp->setLine(3);
-            disp->printf("Zeit: %5.2f s", p_Statistic_->opening_time/1000);
+            disp->printf("Zeit: %11.2f s", p_Statistic_->opening_time/1000);
             if(g_flashConfig.display != DisplayHD44780)
             {
               disp->setLine(4);
@@ -1341,6 +1349,9 @@ void loop()
               {
                 disp->setLine(5);
                 disp->print("Gaerung       ");
+                String test = "IP: " +  WiFi.localIP().toString();
+                disp->setLine(6);
+                 disp->print(test.c_str());
               }
               
             }
